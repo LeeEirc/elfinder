@@ -98,8 +98,14 @@ func (f *LocalFileVolume) Parents(path string, dep int) []FileDir {
 	relativePaths := strings.Split(relativepath, "/")
 	dirs := make([]FileDir, 0, len(relativePaths))
 	for i, _ := range relativePaths {
-		realDirPath := filepath.Join(f.basePath, filepath.Join(relativePaths[:i+1]...))
+		realDirPath := filepath.Join(f.basePath, filepath.Join(relativePaths[:i]...))
 		dirs = append(dirs, f.Info(realDirPath))
+		tmpDir := f.List(realDirPath)
+		for j, item := range tmpDir{
+			if item.Dirs == 1{
+				dirs = append(dirs, tmpDir[j])
+			}
+		}
 	}
 	return dirs
 }
