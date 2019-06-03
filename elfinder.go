@@ -6,12 +6,12 @@ import (
 
 	"encoding/json"
 
-	"github.com/go-playground/form"
-	"strings"
 	"fmt"
+	"github.com/go-playground/form"
 	"io"
 	"mime"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -84,8 +84,8 @@ func (elf *ElFinderConnector) open() {
 		path = "/"
 	} else {
 		path, err = elf.parseTarget(IDAndTarget[1])
-		if err != nil{
-			elf.res.Error = err
+		if err != nil {
+			elf.res.Error = []string{"errFolderNotFound"}
 			return
 		}
 	}
@@ -99,7 +99,7 @@ func (elf *ElFinderConnector) open() {
 		v = elf.getVolume(IDAndTarget[0])
 		ret.Cwd = v.Info(path)
 		ret.Files = v.List(path)
-		ret.Files = append(ret.Files,ret.Cwd)
+		ret.Files = append(ret.Files, ret.Cwd)
 	}
 
 	if elf.req.Init {
@@ -109,10 +109,10 @@ func (elf *ElFinderConnector) open() {
 	}
 
 	if elf.req.Tree {
-			ret.Tree = make([]FileDir, 0, len(elf.Volumes))
-			for _, item := range elf.Volumes {
-				ret.Files = append(ret.Files, item.RootFileDir())
-			}
+		ret.Tree = make([]FileDir, 0, len(elf.Volumes))
+		for _, item := range elf.Volumes {
+			ret.Files = append(ret.Files, item.RootFileDir())
+		}
 	}
 	elf.res = &ret
 }
@@ -121,19 +121,19 @@ func (elf *ElFinderConnector) copy() {
 	//cut, copy, paste
 }
 
-func (elf *ElFinderConnector) file() (read io.Reader, filename string ,err error) {
+func (elf *ElFinderConnector) file() (read io.Reader, filename string, err error) {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(IDAndTarget[1])
-	if err != nil{
+	if err != nil {
 		return
 	}
 	filename = filepath.Base(path)
-	reader , err := v.GetFile(path)
-	return reader,filename,err
+	reader, err := v.GetFile(path)
+	return reader, filename, err
 }
 
-func (elf *ElFinderConnector) get()  {
+func (elf *ElFinderConnector) get() {
 
 }
 
@@ -156,16 +156,13 @@ func (elf *ElFinderConnector) ls() {
 			for _, jitem := range elf.req.Intersect {
 				if item.Name == jitem {
 					resultFiles = append(resultFiles,
-						fmt.Sprintf(`"%s";"%s"`,item.Hash,item.Name))
+						fmt.Sprintf(`"%s";"%s"`, item.Hash, item.Name))
 				}
 			}
 		}
-
 	} else {
 		for _, item := range dirs {
-
-			resultFiles = append(resultFiles, fmt.Sprintf(`"%s";"%s"`,item.Hash,item.Name))
-
+			resultFiles = append(resultFiles, fmt.Sprintf(`"%s";"%s"`, item.Hash, item.Name))
 		}
 	}
 
@@ -177,13 +174,29 @@ func (elf *ElFinderConnector) parents() {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(IDAndTarget[1])
-	if err != nil{
+	if err != nil {
 		elf.res.Error = err
 		return
 	}
 
 	log.Println(" parents parseTarget path: ", path)
 	elf.res.Tree = v.Parents(path, 0)
+}
+
+func (elf *ElFinderConnector) mkdir() {
+	IDAndTarget := strings.Split(elf.req.Target, "_")
+	v := elf.getVolume(IDAndTarget[0])
+	path, err := elf.parseTarget(IDAndTarget[1])
+	if err != nil {
+		elf.res.Error = []string{"errMkdir",elf.req.Name }
+		return
+	}
+	fileDir,err := v.MakeDir(path,elf.req.Name)
+	if err != nil{
+		elf.res.Error = []string{"errMkdir",elf.req.Name}
+		return
+	}
+	elf.res.Added = []FileDir{fileDir}
 }
 
 func (elf *ElFinderConnector) paste() {
@@ -223,7 +236,7 @@ func (elf *ElFinderConnector) tree() {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(IDAndTarget[1])
-	if err != nil{
+	if err != nil {
 		elf.res.Error = err
 		return
 	}
@@ -239,7 +252,7 @@ func (elf *ElFinderConnector) tree() {
 	elf.res = &ret
 }
 
-func (elf *ElFinderConnector) upload() (Volume, string){
+func (elf *ElFinderConnector) upload() (Volume, string) {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
 	path, _ := elf.parseTarget(IDAndTarget[1])
@@ -258,24 +271,24 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	case "tree":
 		elf.tree()
 	case "file":
-		readFile,filename,err := elf.file()
+		readFile, filename, err := elf.file()
 		if err != nil {
 			elf.res.Error = err.Error()
 		} else {
 			mimeType := mime.TypeByExtension(filepath.Ext(filename))
 			rw.Header().Set("Content-Type", mimeType)
 			if req.Form["download"] != nil {
-				rw.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s",filename))
+				rw.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 			} else {
-				rw.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename==%s",filename))
+				rw.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename==%s", filename))
 			}
-			_, err :=io.Copy(rw, readFile)
-			if err == nil{
+			_, err := io.Copy(rw, readFile)
+			if err == nil {
 				log.Printf("download file %s successful", filename)
 				return
-			}else {
+			} else {
 				elf.res.Error = err.Error()
-				log.Printf("download file %s err: %s",filename,  err.Error())
+				log.Printf("download file %s err: %s", filename, err.Error())
 			}
 		}
 	case "get":
@@ -286,7 +299,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	case "parents":
 		elf.parents()
 	case "mkdir":
-
+		elf.mkdir()
 	case "mkfile":
 	case "paste":
 	case "rename":
@@ -296,17 +309,17 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		v, dirpath := elf.upload()
 		files := req.MultipartForm.File["upload[]"]
 		added := make([]FileDir, 0, len(files))
-		errs := make([]string,0, len(files))
-		for _, uploadFile := range files{
-			f , err := uploadFile.Open()
-			result, err := v.UploadFile(dirpath,uploadFile.Filename,f)
-			if err!= nil{
-				errs = append(errs,"errUpload")
+		errs := make([]string, 0, len(files))
+		for _, uploadFile := range files {
+			f, err := uploadFile.Open()
+			result, err := v.UploadFile(dirpath, uploadFile.Filename, f)
+			if err != nil {
+				errs = append(errs, "errUpload")
 				continue
 			}
-			added = append(added,result)
+			added = append(added, result)
 		}
-		if len(errs) >= 1{
+		if len(errs) >= 1 {
 			elf.res.Warning = errs
 		}
 		elf.res.Added = added
@@ -332,9 +345,9 @@ func (elf *ElFinderConnector) getVolume(vid string) Volume {
 		return elf.defaultV
 	}
 	log.Println("getVolume ", vid)
-	if v, ok := elf.Volumes[vid]; ok{
+	if v, ok := elf.Volumes[vid]; ok {
 		return v
-	}else {
+	} else {
 		return elf.defaultV
 	}
 

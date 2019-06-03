@@ -20,6 +20,7 @@ type Volume interface {
 	Parents(path string, dep int) []FileDir
 	GetFile(path string) (reader io.Reader, err error)
 	UploadFile(dir, filename string, reader io.Reader) (FileDir, error)
+	MakeDir(dir, newDirname string)(FileDir,error)
 	RootFileDir() FileDir
 }
 
@@ -122,6 +123,15 @@ func (f *LocalFileVolume) UploadFile(dirname, filename string, reader io.Reader)
 
 func (f *LocalFileVolume) hash(path string) string {
 	return CreateHash(f.Id, path)
+}
+
+func (f *LocalFileVolume)MakeDir(dir, newDirname string)(FileDir,error)  {
+	realPath := filepath.Join(dir,newDirname)
+	err := os.Mkdir(realPath, os.ModePerm)
+	if err != nil{
+		return FileDir{}, err
+	}
+	return f.Info(realPath),nil
 }
 
 func (f *LocalFileVolume) RootFileDir() FileDir {
