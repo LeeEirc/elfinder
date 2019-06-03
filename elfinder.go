@@ -1,17 +1,16 @@
 package elfinder
 
 import (
-	"log"
-	"net/http"
-
 	"encoding/json"
-
 	"fmt"
-	"github.com/go-playground/form"
 	"io"
+	"log"
 	"mime"
+	"net/http"
 	"path/filepath"
 	"strings"
+
+	"github.com/go-playground/form"
 )
 
 const (
@@ -117,7 +116,7 @@ func (elf *ElFinderConnector) open() {
 	elf.res = &ret
 }
 
-func (elf *ElFinderConnector) file() (read io.Reader, filename string, err error) {
+func (elf *ElFinderConnector) file() (read io.ReadCloser, filename string, err error) {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
@@ -213,6 +212,48 @@ func (elf *ElFinderConnector) mkFile(){
 
 func (elf *ElFinderConnector) paste() {
 	//cut, copy, paste
+	added := make([]FileDir,0,len(elf.req.Targets))
+	removed := make([]string,0,len(elf.req.Targets))
+
+	dstIDAndTarget := strings.Split(elf.req.Dst, "_")
+	dstPath, err := elf.parseTarget(strings.Join(dstIDAndTarget[1:],"_"))
+	if err != nil{
+		elf.res.Error = []string{"errFolderNotFound"}
+		return
+	}
+	dstVol := elf.getVolume(dstIDAndTarget[0])
+	for i, target := range elf.req.Targets{
+		srcIDAndTarget := strings.Split(target, "_")
+		srcVol := elf.getVolume(srcIDAndTarget[0])
+		srcPath, err := elf.parseTarget(strings.Join(srcIDAndTarget[1:],"_"))
+		if err != nil{
+			log.Println("parse path err: ", err)
+			continue
+		}
+		srcFileDir := srcVol.Info(srcPath)
+		srcFd ,err := srcVol.GetFile(srcPath)
+		if err !=nil{
+			log.Println("Get File err: ", err)
+			continue
+		}
+		newFileDir,err := dstVol.Paste(dstPath,srcFileDir.Name,elf.req.Suffix,srcFd)
+		if err != nil{
+			log.Println("parse path err: ", err)
+			continue
+		}
+		if elf.req.Cut{
+			err = srcVol.Remove(srcPath)
+			if err == nil{
+				removed = append(removed,elf.req.Targets[i])
+			}else {
+				log.Println("cut file failed")
+			}
+		}
+		added = append(added,newFileDir)
+	}
+
+	elf.res.Added = added
+	elf.res.Removed = removed
 }
 
 func (elf *ElFinderConnector) ping() {
@@ -327,6 +368,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		elf.tree()
 	case "file":
 		readFile, filename, err := elf.file()
+		defer readFile.Close()
 		if err != nil {
 			elf.res.Error = err.Error()
 		} else {
@@ -349,6 +391,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	case "get":
 
 	case "info":
+
 	case "ls":
 		elf.ls()
 	case "parents":
@@ -358,6 +401,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	case "mkfile":
 		elf.mkFile()
 	case "paste":
+		elf.paste()
 	case "rename":
 		elf.rename()
 	case "rm":

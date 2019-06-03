@@ -3,10 +3,10 @@ package elfinder
 import (
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"log"
 )
 
 var rootPath, _ = os.Getwd()
@@ -18,12 +18,13 @@ type Volume interface {
 	Info(path string) FileDir
 	List(path string) []FileDir
 	Parents(path string, dep int) []FileDir
-	GetFile(path string) (reader io.Reader, err error)
+	GetFile(path string) (reader io.ReadCloser, err error)
 	UploadFile(dir, filename string, reader io.Reader) (FileDir, error)
 	MakeDir(dir, newDirname string)(FileDir,error)
 	MakeFile(dir, newFilename string)(FileDir,error)
 	Rename(oldNamePath, newname string)(FileDir,error)
 	Remove(path string) error
+	Paste(dir, filename, suffix string, reader io.ReadCloser)(FileDir,error)
 	RootFileDir() FileDir
 }
 
@@ -111,7 +112,7 @@ func (f *LocalFileVolume) Parents(path string, dep int) []FileDir {
 	return dirs
 }
 
-func (f *LocalFileVolume) GetFile(path string) (reader io.Reader, err error) {
+func (f *LocalFileVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	freader, err := os.Open(path)
 	return freader, err
 }
@@ -134,7 +135,7 @@ func (f *LocalFileVolume) hash(path string) string {
 	return CreateHash(f.Id, path)
 }
 
-func (f *LocalFileVolume)MakeDir(dir, newDirname string)(FileDir,error)  {
+func (f *LocalFileVolume) MakeDir(dir, newDirname string)(FileDir,error)  {
 	realPath := filepath.Join(dir,newDirname)
 	err := os.Mkdir(realPath, os.ModePerm)
 	if err != nil{
@@ -180,6 +181,25 @@ func (f *LocalFileVolume) Rename (oldNamePath, newName string)(FileDir,error){
 func (f *LocalFileVolume) Remove(path string) error{
 	return os.RemoveAll(path)
 }
+
+func (f *LocalFileVolume) Paste(dir, filename, suffix string, reader io.ReadCloser)(FileDir,error){
+	defer reader.Close()
+	res := FileDir{}
+	realpath := filepath.Join(dir,filename)
+	if f.Info(realpath).Name == filename{
+		realpath += suffix
+	}
+	dstFd, err := os.Create(realpath)
+	if err != nil{
+		return res,err
+	}
+	_, err = io.Copy(dstFd,reader)
+	if err != nil{
+		return res, err
+	}
+	return f.Info(realpath), nil
+}
+
 func (f *LocalFileVolume) RootFileDir() FileDir {
 	var resFDir= FileDir{}
 	info, _ := os.Stat(f.basePath)
