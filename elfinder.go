@@ -186,12 +186,24 @@ func (elf *ElFinderConnector) mkDir() {
 		elf.res.Error = []string{"errMkdir",elf.req.Name }
 		return
 	}
-	fileDir,err := v.MakeDir(path,elf.req.Name)
-	if err != nil{
-		elf.res.Error = []string{"errMkdir",elf.req.Name}
-		return
+	if elf.req.Name != ""{
+		fileDir,err := v.MakeDir(path,elf.req.Name)
+		if err != nil{
+			elf.res.Error = []string{"errMkdir",elf.req.Name}
+			return
+		}
+		elf.res.Added = []FileDir{fileDir}
 	}
-	elf.res.Added = []FileDir{fileDir}
+	if len(elf.req.Dirs) != 0 {
+		for _, name := range elf.req.Dirs{
+			fileDir,err := v.MakeDir(path,name)
+			if err != nil{
+				elf.res.Error = []string{"errMkdir",elf.req.Name}
+				return
+			}
+			elf.res.Added = []FileDir{fileDir}
+		}
+	}
 }
 
 func (elf *ElFinderConnector) mkFile(){
