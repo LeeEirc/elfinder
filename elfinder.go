@@ -228,6 +228,20 @@ func (elf *ElFinderConnector) put() {
 }
 
 func (elf *ElFinderConnector) rename() {
+	IDAndTarget := strings.Split(elf.req.Target, "_")
+	v := elf.getVolume(IDAndTarget[0])
+	path, err := elf.parseTarget(IDAndTarget[1])
+	if err != nil {
+		elf.res.Error = []string{"errRename",elf.req.Name}
+		return
+	}
+	fileDir, err := v.Rename(path, elf.req.Name)
+	if err != nil {
+		elf.res.Error = []string{"errRename",elf.req.Name}
+		return
+	}
+	elf.res.Added = []FileDir{fileDir}
+	elf.res.Removed = []string{elf.req.Target}
 
 }
 
@@ -320,6 +334,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		elf.mkFile()
 	case "paste":
 	case "rename":
+		elf.rename()
 	case "rm":
 	case "size":
 	case "upload":

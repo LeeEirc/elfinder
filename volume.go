@@ -22,6 +22,7 @@ type Volume interface {
 	UploadFile(dir, filename string, reader io.Reader) (FileDir, error)
 	MakeDir(dir, newDirname string)(FileDir,error)
 	MakeFile(dir, newFilename string)(FileDir,error)
+	Rename(oldNamePath, newname string)(FileDir,error)
 	RootFileDir() FileDir
 }
 
@@ -135,7 +136,7 @@ func (f *LocalFileVolume)MakeDir(dir, newDirname string)(FileDir,error)  {
 	return f.Info(realPath),nil
 }
 
-func (f *LocalFileVolume)MakeFile(dir, newFilename string)(FileDir,error){
+func (f *LocalFileVolume) MakeFile (dir, newFilename string)(FileDir,error){
 	var res FileDir
 	realPath := filepath.Join(dir,newFilename)
 	fd, err := os.Create(realPath)
@@ -156,6 +157,17 @@ func (f *LocalFileVolume)MakeFile(dir, newFilename string)(FileDir,error){
 	res.Read, res.Write = ReadWritePem(fdInfo.Mode())
 	return res,nil
 
+}
+
+func (f *LocalFileVolume) Rename (oldNamePath, newName string)(FileDir,error){
+	var res FileDir
+	dirname := filepath.Dir(oldNamePath)
+	realNewNamePath := filepath.Join(dirname,newName)
+	err := os.Rename(oldNamePath,realNewNamePath)
+	if err!= nil{
+		return res,err
+	}
+	return f.Info(realNewNamePath),nil
 }
 
 func (f *LocalFileVolume) RootFileDir() FileDir {
