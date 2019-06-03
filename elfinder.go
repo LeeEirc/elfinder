@@ -183,7 +183,7 @@ func (elf *ElFinderConnector) parents() {
 	elf.res.Tree = v.Parents(path, 0)
 }
 
-func (elf *ElFinderConnector) mkdir() {
+func (elf *ElFinderConnector) mkDir() {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(IDAndTarget[1])
@@ -194,6 +194,22 @@ func (elf *ElFinderConnector) mkdir() {
 	fileDir,err := v.MakeDir(path,elf.req.Name)
 	if err != nil{
 		elf.res.Error = []string{"errMkdir",elf.req.Name}
+		return
+	}
+	elf.res.Added = []FileDir{fileDir}
+}
+
+func (elf *ElFinderConnector) mkFile(){
+	IDAndTarget := strings.Split(elf.req.Target, "_")
+	v := elf.getVolume(IDAndTarget[0])
+	path, err := elf.parseTarget(IDAndTarget[1])
+	if err != nil {
+		elf.res.Error = []string{"errMkfile",elf.req.Name }
+		return
+	}
+	fileDir, err := v.MakeFile(path ,elf.req.Name)
+	if err != nil{
+		elf.res.Error = []string{"errMkfile",elf.req.Name}
 		return
 	}
 	elf.res.Added = []FileDir{fileDir}
@@ -299,8 +315,9 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	case "parents":
 		elf.parents()
 	case "mkdir":
-		elf.mkdir()
+		elf.mkDir()
 	case "mkfile":
+		elf.mkFile()
 	case "paste":
 	case "rename":
 	case "rm":

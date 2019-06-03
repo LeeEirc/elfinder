@@ -21,6 +21,7 @@ type Volume interface {
 	GetFile(path string) (reader io.Reader, err error)
 	UploadFile(dir, filename string, reader io.Reader) (FileDir, error)
 	MakeDir(dir, newDirname string)(FileDir,error)
+	MakeFile(dir, newFilename string)(FileDir,error)
 	RootFileDir() FileDir
 }
 
@@ -132,6 +133,29 @@ func (f *LocalFileVolume)MakeDir(dir, newDirname string)(FileDir,error)  {
 		return FileDir{}, err
 	}
 	return f.Info(realPath),nil
+}
+
+func (f *LocalFileVolume)MakeFile(dir, newFilename string)(FileDir,error){
+	var res FileDir
+	realPath := filepath.Join(dir,newFilename)
+	fd, err := os.Create(realPath)
+	if err != nil{
+		return res, err
+	}
+	fdInfo ,err := fd.Stat()
+	if err != nil{
+		return res, err
+	}
+	res.Name = fdInfo.Name()
+	res.Hash = f.hash(realPath)
+	res.Phash = f.hash(dir)
+	res.Ts = fdInfo.ModTime().Unix()
+	res.Size = fdInfo.Size()
+	res.Mime = "file"
+	res.Dirs = 0
+	res.Read, res.Write = ReadWritePem(fdInfo.Mode())
+	return res,nil
+
 }
 
 func (f *LocalFileVolume) RootFileDir() FileDir {
