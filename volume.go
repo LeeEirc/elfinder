@@ -23,6 +23,7 @@ type Volume interface {
 	MakeDir(dir, newDirname string)(FileDir,error)
 	MakeFile(dir, newFilename string)(FileDir,error)
 	Rename(oldNamePath, newname string)(FileDir,error)
+	Remove(path string) error
 	RootFileDir() FileDir
 }
 
@@ -176,6 +177,9 @@ func (f *LocalFileVolume) Rename (oldNamePath, newName string)(FileDir,error){
 	return f.Info(realNewNamePath),nil
 }
 
+func (f *LocalFileVolume) Remove(path string) error{
+	return os.RemoveAll(path)
+}
 func (f *LocalFileVolume) RootFileDir() FileDir {
 	var resFDir= FileDir{}
 	info, _ := os.Stat(f.basePath)

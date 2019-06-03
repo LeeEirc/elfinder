@@ -83,7 +83,7 @@ func (elf *ElFinderConnector) open() {
 	if len(IDAndTarget) == 1 {
 		path = "/"
 	} else {
-		path, err = elf.parseTarget(IDAndTarget[1])
+		path, err = elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 		if err != nil {
 			elf.res.Error = []string{"errFolderNotFound"}
 			return
@@ -117,14 +117,10 @@ func (elf *ElFinderConnector) open() {
 	elf.res = &ret
 }
 
-func (elf *ElFinderConnector) copy() {
-	//cut, copy, paste
-}
-
 func (elf *ElFinderConnector) file() (read io.Reader, filename string, err error) {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
-	path, err := elf.parseTarget(IDAndTarget[1])
+	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	if err != nil {
 		return
 	}
@@ -145,7 +141,7 @@ func (elf *ElFinderConnector) ls() {
 	if len(IDAndTarget) == 1 {
 		path = "/"
 	} else {
-		path, _ = elf.parseTarget(IDAndTarget[1])
+		path, _ = elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	}
 
 	dirs := v.List(path)
@@ -173,7 +169,7 @@ func (elf *ElFinderConnector) ls() {
 func (elf *ElFinderConnector) parents() {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
-	path, err := elf.parseTarget(IDAndTarget[1])
+	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	if err != nil {
 		elf.res.Error = err
 		return
@@ -186,7 +182,7 @@ func (elf *ElFinderConnector) parents() {
 func (elf *ElFinderConnector) mkDir() {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
-	path, err := elf.parseTarget(IDAndTarget[1])
+	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	if err != nil {
 		elf.res.Error = []string{"errMkdir",elf.req.Name }
 		return
@@ -202,7 +198,7 @@ func (elf *ElFinderConnector) mkDir() {
 func (elf *ElFinderConnector) mkFile(){
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
-	path, err := elf.parseTarget(IDAndTarget[1])
+	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	if err != nil {
 		elf.res.Error = []string{"errMkfile",elf.req.Name }
 		return
@@ -216,7 +212,7 @@ func (elf *ElFinderConnector) mkFile(){
 }
 
 func (elf *ElFinderConnector) paste() {
-
+	//cut, copy, paste
 }
 
 func (elf *ElFinderConnector) ping() {
@@ -230,7 +226,7 @@ func (elf *ElFinderConnector) put() {
 func (elf *ElFinderConnector) rename() {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
-	path, err := elf.parseTarget(IDAndTarget[1])
+	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	if err != nil {
 		elf.res.Error = []string{"errRename",elf.req.Name}
 		return
@@ -250,7 +246,23 @@ func (elf *ElFinderConnector) resize() {
 }
 
 func (elf *ElFinderConnector) rm() {
-
+	removed := make([]string, 0, len(elf.req.Targets))
+	for _, target := range elf.req.Targets{
+		IDAndTarget := strings.Split(target, "_")
+		v := elf.getVolume(IDAndTarget[0])
+		path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
+		if err !=nil{
+			log.Println(err)
+			continue
+		}
+		err = v.Remove(path)
+		if err != nil{
+			log.Println(err)
+			continue
+		}
+		removed = append(removed,target)
+	}
+	elf.res.Removed = removed
 }
 
 func (elf *ElFinderConnector) search() {
@@ -258,14 +270,27 @@ func (elf *ElFinderConnector) search() {
 }
 
 func (elf *ElFinderConnector) size() {
-
+	var totalSize int64
+	for _, target := range elf.req.Targets{
+		IDAndTarget := strings.Split(target, "_")
+		v := elf.getVolume(IDAndTarget[0])
+		path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
+		if err != nil{
+			log.Println(err)
+			continue
+		}
+		tmpInfo := v.Info(path)
+		totalSize += tmpInfo.Size
+	}
+	log.Println(totalSize)
+	elf.res.Size = totalSize
 }
 
 func (elf *ElFinderConnector) tree() {
 	var ret = ElfResponse{Tree: []FileDir{}}
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
-	path, err := elf.parseTarget(IDAndTarget[1])
+	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	if err != nil {
 		elf.res.Error = err
 		return
@@ -285,7 +310,7 @@ func (elf *ElFinderConnector) tree() {
 func (elf *ElFinderConnector) upload() (Volume, string) {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
-	path, _ := elf.parseTarget(IDAndTarget[1])
+	path, _ := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	return v, path
 }
 
@@ -336,7 +361,20 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	case "rename":
 		elf.rename()
 	case "rm":
+		elf.rm()
 	case "size":
+		if len(elf.req.Targets)== 0{
+			targets := make([]string,0, 5)
+			for i:= 0; i<100;i++{
+				value := req.Form.Get(fmt.Sprintf("targets[%d]", i))
+				if value == ""{
+					break
+				}
+				targets = append(targets,value)
+			}
+			elf.req.Targets = targets
+		}
+		elf.size()
 	case "upload":
 		v, dirpath := elf.upload()
 		files := req.MultipartForm.File["upload[]"]
@@ -355,7 +393,6 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			elf.res.Warning = errs
 		}
 		elf.res.Added = added
-
 	case "put":
 		log.Println("=====put")
 	}

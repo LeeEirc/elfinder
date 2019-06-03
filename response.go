@@ -25,6 +25,7 @@ type ElfResponse struct {
 	Changed []FileDir         `json:"changed,omitempty"` // for mkdir
 	Hashes  map[string]string `json:"hashes,omitempty"`  // for mkdir
 	List    []string          `json:"list,omitempty"`    // for ls
+	Size 	int64 `json:"size,omitempty"` // for size
 
 	Name        string `json:"_name,omitempty"`
 	Chunkmerged string `json:"_chunkmerged,omitempty"`
