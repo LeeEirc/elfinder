@@ -29,12 +29,12 @@ func GenerateID(path string) string {
 	return hex.EncodeToString(ctx.Sum(nil))
 }
 
-func ReadWritePem(pem os.FileMode) (readable, writeable byte) {
+func ReadWritePem(pem os.FileMode) (readable, writable byte) {
 	if pem&(1<<uint(9-1-0)) != 0 {
 		readable = 1
 	}
 	if pem&(1<<uint(9-1-1)) != 0 {
-		writeable = 1
+		writable = 1
 	}
 	return
 }
