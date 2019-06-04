@@ -1,8 +1,8 @@
 package elfinder
 
 import (
-	"encoding/base64"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/hex"
 	"os"
 )
@@ -39,69 +39,3 @@ func ReadWritePem(pem os.FileMode) (readable, writeable byte) {
 	return
 }
 
-
-var damo =`
-{
-    "api":"2.1",
-    "cwd":{
-        "dirs":1,
-        "hash":"a5f40d93b2831f5c0e979b210462c00e_Lw",
-        "hidden":0,
-        "locked":1,
-        "mime":"directory",
-        "name":"Home",
-        "read":1,
-        "size":832,
-        "ts":1558928508.1905725,
-        "volume_id":"a5f40d93b2831f5c0e979b210462c00e",
-        "write":1
-    },
-    "files":[
-        {
-            "dirs":1,
-            "hash":"a5f40d93b2831f5c0e979b210462c00e_MTExLjIzMC4yMDYuNTE",
-            "hidden":0,
-            "locked":0,
-            "mime":"directory",
-            "name":"111.230.206.51",
-            "phash":"a5f40d93b2831f5c0e979b210462c00e_Lw",
-            "read":1,
-            "size":832,
-            "ts":1558928508.1905725,
-            "write":1
-        },
-        {
-            "dirs":1,
-            "hash":"a5f40d93b2831f5c0e979b210462c00e_Lw",
-            "hidden":0,
-            "locked":1,
-            "mime":"directory",
-            "name":"Home",
-            "read":1,
-            "size":832,
-            "ts":1558928508.1905725,
-            "volume_id":"a5f40d93b2831f5c0e979b210462c00e",
-            "write":1
-        }
-    ],
-    "options":{
-        "archivers":{
-            "create":[
-
-            ],
-            "extract":[
-
-            ]
-        },
-        "copyOverwrite":1,
-        "disabled":[
-            "chmod"
-        ],
-        "separator":"/",
-        "uiCmdMap":[
-
-        ]
-    },
-    "uplMaxSize":"10M"
-}
-`
