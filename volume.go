@@ -1,9 +1,9 @@
 package elfinder
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,11 +15,14 @@ var DefaultVolume = LocalFileVolume{basePath: rootPath, Id: GenerateID(rootPath)
 
 type Volume interface {
 	ID() string
-	Info(path string) FileDir
+	Info(path string) (FileDir, error)
 	List(path string) []FileDir
 	Parents(path string, dep int) []FileDir
 	GetFile(path string) (reader io.ReadCloser, err error)
 	UploadFile(dir, filename string, reader io.Reader) (FileDir, error)
+	UploadChunk(cid int, dirPath, chunkName string,reader io.Reader) error
+	MergeChunk(cid, total int,dirPath,filename string)  (FileDir, error)
+	CompleteChunk(cid, total int,dirPath,filename string) bool
 	MakeDir(dir, newDirname string)(FileDir,error)
 	MakeFile(dir, newFilename string)(FileDir,error)
 	Rename(oldNamePath, newname string)(FileDir,error)
@@ -45,7 +48,7 @@ func (f *LocalFileVolume) ID() string {
 	return f.Id
 }
 
-func (f *LocalFileVolume) Info(path string) FileDir {
+func (f *LocalFileVolume) Info(path string) (FileDir, error) {
 	var resFDir FileDir
 	if path == "" || path == "/" {
 		path = f.basePath
@@ -57,8 +60,7 @@ func (f *LocalFileVolume) Info(path string) FileDir {
 
 	pathInfo, err := os.Stat(path)
 	if err != nil {
-		log.Println("open file err", err.Error())
-		return resFDir
+		return resFDir, err
 	}
 
 	resFDir.Name = pathInfo.Name()
@@ -74,7 +76,7 @@ func (f *LocalFileVolume) Info(path string) FileDir {
 		resFDir.Mime = "file"
 		resFDir.Dirs = 0
 	}
-	return resFDir
+	return resFDir, nil
 }
 
 func (f *LocalFileVolume) List(path string) []FileDir {
@@ -88,7 +90,10 @@ func (f *LocalFileVolume) List(path string) []FileDir {
 	fileDir := make([]FileDir, 0, len(files))
 
 	for _, item := range files {
-		fileD := f.Info(filepath.Join(path, item.Name()))
+		fileD, err := f.Info(filepath.Join(path, item.Name()))
+		if err != nil{
+			continue
+		}
 		fileDir = append(fileDir, fileD)
 	}
 
@@ -101,7 +106,11 @@ func (f *LocalFileVolume) Parents(path string, dep int) []FileDir {
 	dirs := make([]FileDir, 0, len(relativePaths))
 	for i, _ := range relativePaths {
 		realDirPath := filepath.Join(f.basePath, filepath.Join(relativePaths[:i]...))
-		dirs = append(dirs, f.Info(realDirPath))
+		result, err := f.Info(realDirPath)
+		if err != nil{
+			continue
+		}
+		dirs = append(dirs, result)
 		tmpDir := f.List(realDirPath)
 		for j, item := range tmpDir{
 			if item.Dirs == 1{
@@ -127,8 +136,57 @@ func (f *LocalFileVolume) UploadFile(dirname, filename string, reader io.Reader)
 	if err != nil{
 		return FileDir{}, err
 	}
-	fileDirInfo := f.Info(realPath)
-	return fileDirInfo, nil
+	return f.Info(realPath)
+}
+
+func (f *LocalFileVolume) UploadChunk(cid int, dirPath, chunkName string,reader io.Reader) error{
+	// chunkName_cid chunkName format "filename.[NUMBER]_[TOTAL].part"
+	chunkpath := filepath.Join(dirPath,chunkName)
+	chunkRealpath := fmt.Sprintf("%s_%d",chunkpath,cid)
+	fd, err := os.OpenFile(chunkRealpath, os.O_WRONLY | os.O_CREATE, 0666)
+	defer fd.Close()
+	if err != nil{
+		return err
+	}
+	_, err = io.Copy(fd,reader)
+	if err != nil{
+		return  err
+	}
+	return nil
+}
+
+func (f *LocalFileVolume) MergeChunk(cid, total int, dirPath,filename string) (FileDir, error){
+	realPath := filepath.Join(dirPath,filename)
+	fd, err := os.OpenFile(realPath, os.O_WRONLY | os.O_CREATE, 0666)
+	defer fd.Close()
+	if err != nil{
+		return FileDir{},err
+	}
+	for i:=0;i<=total;i++{
+		partPath:= fmt.Sprintf("%s.%d_%d.part_%d", realPath,i,total,cid)
+		partFD, err := os.Open(partPath)
+		if err !=nil{
+			return FileDir{},err
+		}
+		_, err = io.Copy(fd,partFD)
+		if err != nil{
+			return FileDir{},err
+		}
+		_ = os.RemoveAll(partPath)
+	}
+	return f.Info(realPath)
+}
+
+func (f *LocalFileVolume) CompleteChunk(cid, total int,dirPath,filename string) bool{
+	realPath := filepath.Join(dirPath,filename)
+	for i:=0;i<=total;i++{
+		partPath:= fmt.Sprintf("%s.%d_%d.part_%d", realPath,i,total,cid)
+		_, err :=  f.Info(partPath)
+		if err != nil{
+			return false
+		}
+	}
+	return true
 }
 
 func (f *LocalFileVolume) hash(path string) string {
@@ -141,7 +199,7 @@ func (f *LocalFileVolume) MakeDir(dir, newDirname string)(FileDir,error)  {
 	if err != nil{
 		return FileDir{}, err
 	}
-	return f.Info(realPath),nil
+	return f.Info(realPath)
 }
 
 func (f *LocalFileVolume) MakeFile (dir, newFilename string)(FileDir,error){
@@ -175,7 +233,7 @@ func (f *LocalFileVolume) Rename (oldNamePath, newName string)(FileDir,error){
 	if err!= nil{
 		return res,err
 	}
-	return f.Info(realNewNamePath),nil
+	return f.Info(realNewNamePath)
 }
 
 func (f *LocalFileVolume) Remove(path string) error{
@@ -186,7 +244,8 @@ func (f *LocalFileVolume) Paste(dir, filename, suffix string, reader io.ReadClos
 	defer reader.Close()
 	res := FileDir{}
 	realpath := filepath.Join(dir,filename)
-	if f.Info(realpath).Name == filename{
+	_, err := f.Info(realpath)
+	if err == nil {
 		realpath += suffix
 	}
 	dstFd, err := os.Create(realpath)
@@ -197,7 +256,7 @@ func (f *LocalFileVolume) Paste(dir, filename, suffix string, reader io.ReadClos
 	if err != nil{
 		return res, err
 	}
-	return f.Info(realpath), nil
+	return f.Info(realpath)
 }
 
 func (f *LocalFileVolume) RootFileDir() FileDir {
@@ -210,6 +269,7 @@ func (f *LocalFileVolume) RootFileDir() FileDir {
 	resFDir.Dirs = 1
 	resFDir.Read, resFDir.Write = ReadWritePem(info.Mode())
 	resFDir.Size = info.Size()
+	resFDir.Locked = 1
 	return resFDir
 }
 

@@ -2,12 +2,15 @@ package elfinder
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"mime"
 	"net/http"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-playground/form"
@@ -96,7 +99,11 @@ func (elf *ElFinderConnector) open() {
 		ret.Files = v.List(path)
 	} else {
 		v = elf.getVolume(IDAndTarget[0])
-		ret.Cwd = v.Info(path)
+		ret.Cwd, err = v.Info(path)
+		if err != nil{
+			elf.res.Error = []string{"errFolderNotFound"}
+			return
+		}
 		ret.Files = v.List(path)
 		ret.Files = append(ret.Files, ret.Cwd)
 	}
@@ -226,6 +233,7 @@ func (elf *ElFinderConnector) paste() {
 	//cut, copy, paste
 	added := make([]FileDir,0,len(elf.req.Targets))
 	removed := make([]string,0,len(elf.req.Targets))
+	errs := make([]string,0,len(elf.req.Targets))
 
 	dstIDAndTarget := strings.Split(elf.req.Dst, "_")
 	dstPath, err := elf.parseTarget(strings.Join(dstIDAndTarget[1:],"_"))
@@ -240,17 +248,25 @@ func (elf *ElFinderConnector) paste() {
 		srcPath, err := elf.parseTarget(strings.Join(srcIDAndTarget[1:],"_"))
 		if err != nil{
 			log.Println("parse path err: ", err)
+			errs = append(errs,err.Error())
 			continue
 		}
-		srcFileDir := srcVol.Info(srcPath)
+		srcFileDir, err := srcVol.Info(srcPath)
+		if err != nil{
+			log.Println("Get File err: ", err)
+			errs = append(errs,err.Error())
+			continue
+		}
 		srcFd ,err := srcVol.GetFile(srcPath)
 		if err !=nil{
 			log.Println("Get File err: ", err)
+			errs = append(errs,err.Error())
 			continue
 		}
 		newFileDir,err := dstVol.Paste(dstPath,srcFileDir.Name,elf.req.Suffix,srcFd)
 		if err != nil{
 			log.Println("parse path err: ", err)
+			errs = append(errs,err.Error())
 			continue
 		}
 		if elf.req.Cut{
@@ -259,6 +275,7 @@ func (elf *ElFinderConnector) paste() {
 				removed = append(removed,elf.req.Targets[i])
 			}else {
 				log.Println("cut file failed")
+				errs = append(errs,err.Error())
 			}
 		}
 		added = append(added,newFileDir)
@@ -266,6 +283,7 @@ func (elf *ElFinderConnector) paste() {
 
 	elf.res.Added = added
 	elf.res.Removed = removed
+	elf.res.Error = errs
 }
 
 func (elf *ElFinderConnector) ping() {
@@ -332,7 +350,11 @@ func (elf *ElFinderConnector) size() {
 			log.Println(err)
 			continue
 		}
-		tmpInfo := v.Info(path)
+		tmpInfo, err := v.Info(path)
+		if err != nil{
+			log.Println(err)
+			continue
+		}
 		totalSize += tmpInfo.Size
 	}
 	log.Println(totalSize)
@@ -351,7 +373,6 @@ func (elf *ElFinderConnector) tree() {
 
 	log.Println("tree parseTarget path: ", path)
 	dirs := v.List(path)
-	ret.Cwd = v.Info(path)
 	for i, item := range v.List(path) {
 		if item.Dirs == 1 {
 			ret.Tree = append(ret.Tree, dirs[i])
@@ -436,17 +457,62 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		files := req.MultipartForm.File["upload[]"]
 		added := make([]FileDir, 0, len(files))
 		errs := make([]string, 0, len(files))
-		for _, uploadFile := range files {
-			f, err := uploadFile.Open()
-			result, err := v.UploadFile(dirpath, uploadFile.Filename, f)
-			if err != nil {
-				errs = append(errs, "errUpload")
-				continue
+		if elf.req.Cid != 0 && elf.req.Chunk != "" {
+			re := regexp.MustCompile(`(.*?)(\.[0-9][0-9]*?_[0-9][0-9]*?)(\.part)`)
+			ch := re.FindStringSubmatch(elf.req.Chunk)
+			if len(ch) != 4 {
+				elf.res.Error = errors.New("Bad chunk name format")
+				break
+			}
+			for _, uploadFile := range files {
+				f, err := uploadFile.Open()
+				if err != nil {
+					errs = append(errs, err.Error())
+					continue
+				}
+				 err = v.UploadChunk(elf.req.Cid,dirpath,elf.req.Chunk,f)
+				if err != nil {
+					errs = append(errs, err.Error())
+				}
+			}
+
+			fileName:= ch[1]
+			t := strings.Split(ch[2], "_")
+			total, _ := strconv.Atoi(t[1])
+			if v.CompleteChunk(elf.req.Cid,total,dirpath,fileName){
+				elf.res.Chunkmerged = fmt.Sprintf("%d_%d_%s",elf.req.Cid,total,fileName)
+				elf.res.Name = fileName
+			}
+
+		} else if elf.req.Chunk != ""{
+			// Chunk merge request
+			re := regexp.MustCompile(`([0-9]*)_([0-9]*)_(.*)`)
+			ch := re.FindStringSubmatch(elf.req.Chunk)
+			if len(ch) != 4{
+				elf.res.Error = errors.New("Bad chunk name format")
+				break
+			}
+			cid,_ := strconv.Atoi(ch[1])
+			total,_ := strconv.Atoi(ch[2])
+			result, err := v.MergeChunk(cid,total,dirpath,ch[3])
+			if err != nil{
+				errs = append(errs, err.Error())
+				break
 			}
 			added = append(added, result)
-		}
-		if len(errs) >= 1 {
-			elf.res.Warning = errs
+		}else {
+			for _, uploadFile := range files {
+				f, err := uploadFile.Open()
+				result, err := v.UploadFile(dirpath, uploadFile.Filename, f)
+				if err != nil {
+					errs = append(errs, "errUpload")
+					continue
+				}
+				added = append(added, result)
+			}
+			if len(errs) >= 1 {
+				elf.res.Warning = errs
+			}
 		}
 		elf.res.Added = added
 	case "put":

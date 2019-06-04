@@ -28,5 +28,6 @@ type ELFRequest struct {
 	Cut        bool     `form:"cut"`
 	Type       string   `form:"type"`
 	MakeDir    bool     `form:"makedir"`
+	Range 	string	`form:"range"`
 }
 
