@@ -1,10 +1,11 @@
 package main
 
 import (
-	"elfinder"
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/LeeEirc/elfinder"
 )
 
 func main() {
