@@ -91,8 +91,6 @@ func (elf *ElFinderConnector) open() {
 			return
 		}
 	}
-	log.Println("open parseTarget path: ", path)
-
 	if path == "" || path == "/" {
 		v = elf.defaultV
 		ret.Cwd = v.RootFileDir()
@@ -135,10 +133,6 @@ func (elf *ElFinderConnector) file() (read io.ReadCloser, filename string, err e
 	return reader, filename, err
 }
 
-func (elf *ElFinderConnector) get() {
-
-}
-
 func (elf *ElFinderConnector) ls() {
 	var path string
 	elf.res.List = make([]string, 0)
@@ -149,7 +143,6 @@ func (elf *ElFinderConnector) ls() {
 	} else {
 		path, _ = elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	}
-
 	dirs := v.List(path)
 	resultFiles := make([]string, 0, len(dirs))
 	if elf.req.Intersect != nil {
@@ -167,7 +160,6 @@ func (elf *ElFinderConnector) ls() {
 			resultFiles = append(resultFiles, fmt.Sprintf(`"%s";"%s"`, item.Hash, item.Name))
 		}
 	}
-
 	elf.res.List = resultFiles
 
 }
@@ -180,8 +172,6 @@ func (elf *ElFinderConnector) parents() {
 		elf.res.Error = err
 		return
 	}
-
-	log.Println(" parents parseTarget path: ", path)
 	elf.res.Tree = v.Parents(path, 0)
 }
 
@@ -290,10 +280,6 @@ func (elf *ElFinderConnector) ping() {
 
 }
 
-func (elf *ElFinderConnector) put() {
-	// POST
-}
-
 func (elf *ElFinderConnector) rename() {
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
@@ -370,8 +356,6 @@ func (elf *ElFinderConnector) tree() {
 		elf.res.Error = err
 		return
 	}
-
-	log.Println("tree parseTarget path: ", path)
 	dirs := v.List(path)
 	for i, item := range v.List(path) {
 		if item.Dirs == 1 {
@@ -386,10 +370,6 @@ func (elf *ElFinderConnector) upload() (Volume, string) {
 	v := elf.getVolume(IDAndTarget[0])
 	path, _ := elf.parseTarget(strings.Join(IDAndTarget[1:],"_"))
 	return v, path
-}
-
-func (elf *ElFinderConnector) url() {
-
 }
 
 func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request) {
@@ -421,10 +401,6 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 				log.Printf("download file %s err: %s", filename, err.Error())
 			}
 		}
-	case "get":
-
-	case "info":
-
 	case "ls":
 		elf.ls()
 	case "parents":
@@ -515,8 +491,8 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			}
 		}
 		elf.res.Added = added
-	case "put":
-		log.Println("=====put")
+	default:
+		elf.res.Error = []string{"errCmdNoSupport"}
 	}
 
 	rw.Header().Set("Content-Type", "application/json")
@@ -528,14 +504,12 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	if err != nil {
 		log.Println("ResponseWriter Write err:", err.Error())
 	}
-
 }
 
 func (elf *ElFinderConnector) getVolume(vid string) Volume {
 	if vid == "" {
 		return elf.defaultV
 	}
-	log.Println("getVolume ", vid)
 	if v, ok := elf.Volumes[vid]; ok {
 		return v
 	} else {
