@@ -342,7 +342,6 @@ func (elf *ElFinderConnector) size() {
 		}
 		totalSize += tmpInfo.Size
 	}
-	log.Println(totalSize)
 	elf.res.Size = totalSize
 }
 
