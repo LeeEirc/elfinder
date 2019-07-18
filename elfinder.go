@@ -103,9 +103,8 @@ func (elf *ElFinderConnector) open() {
 			return
 		}
 		ret.Files = v.List(path)
-		ret.Files = append(ret.Files, ret.Cwd)
 	}
-
+	ret.Files = append(ret.Files, ret.Cwd)
 	if elf.req.Init {
 		ret.Api = APIVERSION
 		ret.UplMaxSize = UPLOADMAXSIZE
