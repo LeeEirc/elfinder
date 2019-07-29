@@ -1,6 +1,7 @@
 package elfinder
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -125,13 +126,15 @@ func (f *LocalFileVolume) GetFile(path string) (reader io.ReadCloser, err error)
 
 func (f *LocalFileVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader) (FileDir, error) {
 	var realPath string
-	switch uploadPath {
-	case "":
-		realPath = filepath.Join(dirPath, filename)
+	switch {
+	case strings.Contains(uploadPath, filename):
+		realPath = filepath.Join(dirPath, strings.TrimPrefix(uploadPath, "/"))
 	default:
-		realPath = filepath.Join(dirPath, uploadPath)
+		realPath = filepath.Join(dirPath, filename)
 
 	}
+	fmt.Printf("%s %s %s \n",dirPath, uploadPath, filename)
+	fmt.Printf("realPath: %s \n",realPath)
 	fwriter, err := os.OpenFile(realPath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return FileDir{}, err
@@ -145,11 +148,13 @@ func (f *LocalFileVolume) UploadFile(dirPath, uploadPath, filename string, reade
 
 func (f *LocalFileVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, rangeData ChunkRange, reader io.Reader) error {
 	var chunkpath string
-	switch strings.TrimSpace(uploadPath) {
-	case "":
-		chunkpath = filepath.Join(dirPath, filename)
+	switch {
+	case strings.Contains(uploadPath, filename):
+		chunkpath = filepath.Join(dirPath, strings.TrimPrefix(uploadPath, "/"))
+	case uploadPath != "":
+		chunkpath = filepath.Join(dirPath, strings.TrimPrefix(uploadPath, "/"), filename)
 	default:
-		chunkpath = filepath.Join(dirPath, uploadPath)
+		chunkpath = filepath.Join(dirPath, filename)
 	}
 	fd, err := os.OpenFile(chunkpath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
@@ -166,12 +171,13 @@ func (f *LocalFileVolume) UploadChunk(cid int, dirPath, uploadPath, filename str
 
 func (f *LocalFileVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename string) (FileDir, error) {
 	var realPath string
-	switch uploadPath {
-	case "":
-		realPath = filepath.Join(dirPath, filename)
-	default:
+	switch {
+	case strings.Contains(uploadPath, filename):
 		realPath = filepath.Join(dirPath, uploadPath)
-
+	case uploadPath != "":
+		realPath = filepath.Join(dirPath, strings.TrimPrefix(uploadPath, "/"), filename)
+	default:
+		realPath = filepath.Join(dirPath, filename)
 	}
 	return f.Info(realPath)
 }
