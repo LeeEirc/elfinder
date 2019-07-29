@@ -244,15 +244,37 @@ func (elf *ElFinderConnector) paste() {
 			log.Println("Get File err: ", err)
 			continue
 		}
-		srcFd, err := srcVol.GetFile(srcPath)
-		if err != nil {
-			log.Println("Get File err: ", err)
-			continue
-		}
-		newFileDir, err := dstVol.Paste(dstPath, srcFileDir.Name, elf.req.Suffix, srcFd)
-		if err != nil {
-			log.Println("parse path err: ", err)
-			continue
+		if srcFileDir.Dirs == 1 {
+			newDirName := srcFileDir.Name
+			dstFolderFiles := dstVol.List(dstPath)
+			for _, item := range dstFolderFiles{
+				if item.Dirs == 1 && item.Name == srcFileDir.Name{
+					newDirName = newDirName + elf.req.Suffix
+				}
+			}
+			newDstDirFile , err := dstVol.MakeDir(dstPath, newDirName)
+			if err != nil{
+				log.Printf("Make Dir err: %s", err.Error())
+				elf.res.Error = []string{errMsg, err.Error()}
+				break
+			}
+			added = append(added,newDstDirFile)
+			newAddFiles := elf.copyFolder(filepath.Join(dstPath,newDstDirFile.Name), srcPath, dstVol, srcVol)
+			added = append(added, newAddFiles...)
+		} else {
+			srcFd, err := srcVol.GetFile(srcPath)
+			if err != nil {
+				log.Println("Get File err: ", err.Error())
+				elf.res.Error = []string{errMsg, err.Error()}
+				break
+			}
+			newFileDir, err := dstVol.Paste(dstPath, srcFileDir.Name, elf.req.Suffix, srcFd)
+			if err != nil {
+				log.Println("parse path err: ", err)
+				elf.res.Error = []string{errMsg, err.Error()}
+				break
+			}
+			added = append(added, newFileDir)
 		}
 		if elf.req.Cut {
 			err = srcVol.Remove(srcPath)
@@ -260,13 +282,44 @@ func (elf *ElFinderConnector) paste() {
 				removed = append(removed, elf.req.Targets[i])
 			} else {
 				log.Println("cut file failed")
+				elf.res.Error = []string{errMsg, err.Error()}
 			}
 		}
-		added = append(added, newFileDir)
 	}
-
 	elf.res.Added = added
 	elf.res.Removed = removed
+}
+
+func (elf *ElFinderConnector) copyFolder(dstPath, srcDir string, dstVol, srcVol Volume) (added []FileDir) {
+	srcFiles := srcVol.List(srcDir)
+	added = make([]FileDir, 0, len(srcFiles))
+	for i := 0; i < len(srcFiles); i++ {
+		srcPath := filepath.Join(srcDir, srcFiles[i].Name)
+		if  srcFiles[i].Dirs == 1 {
+			subDirFile, err := dstVol.MakeDir(dstPath,srcFiles[i].Name )
+			if err !=nil{
+				log.Printf("Make dir err: %s", err.Error())
+				break
+			}
+			added = append(added, subDirFile)
+			newDstPath := filepath.Join(dstPath, subDirFile.Name)
+			subAdded := elf.copyFolder(newDstPath, srcPath, dstVol, srcVol)
+			added = append(added, subAdded...)
+		}else {
+			srcFd, err := srcVol.GetFile(srcPath)
+			if err != nil {
+				log.Println("Get File err: ", err)
+				continue
+			}
+			newFileDir, err := dstVol.Paste(dstPath, srcFiles[i].Name, elf.req.Suffix, srcFd)
+			if err != nil {
+				log.Println("parse path err: ", err)
+				continue
+			}
+			added = append(added, newFileDir)
+		}
+	}
+	return
 }
 
 func (elf *ElFinderConnector) ping() {

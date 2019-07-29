@@ -1,7 +1,6 @@
 package elfinder
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -133,8 +132,6 @@ func (f *LocalFileVolume) UploadFile(dirPath, uploadPath, filename string, reade
 		realPath = filepath.Join(dirPath, filename)
 
 	}
-	fmt.Printf("%s %s %s \n",dirPath, uploadPath, filename)
-	fmt.Printf("realPath: %s \n",realPath)
 	fwriter, err := os.OpenFile(realPath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return FileDir{}, err
