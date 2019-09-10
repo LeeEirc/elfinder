@@ -1,23 +1,32 @@
 package elfinder
 
 import (
+	"archive/zip"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-playground/form"
 )
 
 const (
-	APIVERSION    = "2.1"
+	APIVERSION    = 2.1050
 	UPLOADMAXSIZE = "10M"
+)
+
+const (
+	defaultZipMaxSize = 1024 * 1024 * 1024 // 1G
+	defaultTmpPath    = "/tmp"
 )
 
 type Volumes []Volume
@@ -30,11 +39,45 @@ func NewElFinderConnector(vs Volumes) *ElFinderConnector {
 	return &ElFinderConnector{Volumes: volumeMap, defaultV: vs[0], req: &ELFRequest{}, res: &ElfResponse{}}
 }
 
+func NewElFinderConnectorWithOption(vs Volumes, option map[string]string) *ElFinderConnector {
+	var volumeMap = make(map[string]Volume)
+	for _, vol := range vs {
+		volumeMap[vol.ID()] = vol
+	}
+	var zipMaxSize int64
+	var zipTmpPath string
+	for k, v := range option {
+		switch strings.ToLower(k) {
+		case "zipmaxsize":
+			if size, err := strconv.Atoi(v); err == nil && size > 0 {
+				zipMaxSize = int64(size)
+			}
+		case "ziptmppath":
+			if _, err := os.Stat(v); err != nil && os.IsNotExist(err) {
+				err = os.MkdirAll(v, 0600)
+				log.Fatal(err)
+			}
+			zipTmpPath = v
+		}
+	}
+	if zipMaxSize == 0 {
+		zipMaxSize = int64(defaultZipMaxSize)
+	}
+
+	if zipTmpPath == "" {
+		zipTmpPath = defaultTmpPath
+	}
+	return &ElFinderConnector{Volumes: volumeMap, zipTmpPath: zipTmpPath, zipMaxSize: zipMaxSize}
+}
+
 type ElFinderConnector struct {
 	Volumes  map[string]Volume
 	defaultV Volume
 	req      *ELFRequest
 	res      *ElfResponse
+
+	zipMaxSize int64
+	zipTmpPath string
 }
 
 func (elf *ElFinderConnector) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -376,11 +419,16 @@ func (elf *ElFinderConnector) size() {
 			continue
 		}
 		tmpInfo, err := v.Info(path)
+
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		totalSize += tmpInfo.Size
+		if tmpInfo.Dirs == 1 {
+			totalSize += calculateFolderSize(v, path)
+		} else {
+			totalSize += tmpInfo.Size
+		}
 	}
 	elf.res.Size = totalSize
 }
@@ -426,9 +474,12 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			mimeType := mime.TypeByExtension(filepath.Ext(filename))
 			rw.Header().Set("Content-Type", mimeType)
 			if req.Form["download"] != nil {
-				rw.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+				rw.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 			} else {
-				rw.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename==%s", filename))
+				rw.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename=="%s"`, filename))
+			}
+			if req.Form.Get("cpath") != "" {
+				http.SetCookie(rw, &http.Cookie{Name: fmt.Sprintf("elfdl%s", req.Form.Get("reqid")), Value: "1"})
 			}
 			_, err := io.Copy(rw, readFile)
 			if err == nil {
@@ -578,6 +629,39 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		}
 		elf.res.Warning = errs
 		elf.res.Added = added
+	case "zipdl":
+		switch elf.req.Download {
+		case "1":
+			var fileKey string
+			var filename string
+			var mimetype string
+			if len(elf.req.Targets) == 4 {
+				fileKey = elf.req.Targets[1]
+				filename = elf.req.Targets[2]
+				mimetype = elf.req.Targets[3]
+			}
+			var ret ElfResponse
+			if zipTmpPath, ok := getTmpFilePath(fileKey); ok {
+				zipFd, err := os.Open(zipTmpPath)
+				if err == nil {
+					rw.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+					rw.Header().Set("Content-Type", mimetype)
+					if _, err = io.Copy(rw, zipFd); err == nil {
+						delTmpFilePath(fileKey)
+						return
+					}
+					rw.Header().Del("Content-Disposition")
+					rw.Header().Del("Content-Type")
+					ret.Error = err
+					log.Println("zip download send err: ", err.Error())
+				}
+				log.Println("zip download err: ", err.Error())
+				ret.Error = err
+			}
+			elf.res = &ret
+		default:
+			elf.zipdl()
+		}
 	default:
 		elf.res.Error = errUnknownCmd
 	}
@@ -613,4 +697,180 @@ func (elf *ElFinderConnector) parseTarget(target string) (path string, err error
 		return "", err
 	}
 	return path, nil
+}
+
+func (elf *ElFinderConnector) zipdl() {
+	var ret ElfResponse
+	var zipWriter *zip.Writer
+	var totalZipSize int64
+
+	zipVs := make([]Volume, 0, len(elf.req.Targets))
+	zipPaths := make([]string, 0, len(elf.req.Targets))
+	for _, target := range elf.req.Targets {
+		IDAndTarget := strings.Split(target, "_")
+		v := elf.getVolume(IDAndTarget[0])
+		path, err := elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		zipVs = append(zipVs, v)
+		zipPaths = append(zipPaths, path)
+	}
+
+	// check maxsize
+	for i := 0; i < len(zipVs); i++ {
+		info, err := zipVs[i].Info(zipPaths[i])
+		if err != nil {
+			continue
+		}
+		if info.Dirs == 1 {
+			totalZipSize += calculateFolderSize(zipVs[i], zipPaths[i])
+		} else {
+			totalZipSize += info.Size
+		}
+	}
+
+	if elf.zipMaxSize == 0 {
+		elf.zipMaxSize = int64(defaultZipMaxSize)
+	}
+	if totalZipSize >= elf.zipMaxSize {
+		ret.Error = errArcMaxSize
+		elf.res = &ret
+		return
+	}
+
+	zipRes := make(map[string]string)
+	zipFileKey := GenerateTargetsMD5Key(elf.req.Targets...)
+	if elf.zipTmpPath == "" {
+		elf.zipTmpPath = defaultTmpPath
+	}
+	filename := fmt.Sprintf("%s%s.zip",
+		time.Now().UTC().Format("20060102150405"), zipFileKey)
+	zipTmpPath := filepath.Join(elf.zipTmpPath, filename)
+	dstFd, err := os.Create(zipTmpPath)
+	if err != nil {
+		log.Println("create tmp zip file err: ", err)
+		ret.Error = err.Error()
+		elf.res = &ret
+		return
+	}
+
+	zipWriter = zip.NewWriter(dstFd)
+	for i:=0; i<len(zipVs);i++ {
+		v := zipVs[i]
+		path := zipPaths[i]
+		info, err := v.Info(path)
+		if err != nil {
+			log.Println("Could not get info: ", path)
+			ret.Error = err.Error()
+			goto endErr
+		}
+		if info.Dirs == 0 {
+			fheader := zip.FileHeader{
+				Name:     info.Name,
+				Modified: time.Now().UTC(),
+				Method:   zip.Deflate,
+			}
+			zipFile, err := zipWriter.CreateHeader(&fheader)
+			if err != nil {
+				log.Println("Create zip err: ", err.Error())
+				ret.Error = err.Error()
+				goto endErr
+			}
+			reader, err := v.GetFile(path)
+			if err != nil {
+				log.Println("Get file err:", err.Error())
+				ret.Error = err.Error()
+				goto endErr
+			}
+			_, err = io.Copy(zipFile, reader)
+			_ = reader.Close()
+			if err != nil {
+				log.Println("Get file err:", err.Error())
+				ret.Error = err.Error()
+				goto endErr
+			}
+		} else {
+			if err := zipFolder(v, filepath.Dir(path), path, zipWriter); err != nil {
+				log.Println("create tmp zip file err: ", err)
+				ret.Error = err.Error()
+				goto endErr
+			}
+		}
+	}
+	err = zipWriter.Close()
+	if err != nil {
+		log.Println("Zip file finish err: ", err)
+		ret.Error = err.Error()
+		goto endErr
+	}
+	setTmpFilePath(zipFileKey, zipTmpPath)
+	zipRes["mime"] = "application/zip"
+	zipRes["file"] = zipFileKey
+	zipRes["name"] = filename
+	ret.Zipdl = zipRes
+	endErr:
+	elf.res = &ret
+
+}
+
+func GenerateTargetsMD5Key(targets ...string) string {
+	h := md5.New()
+	h.Write([]byte(fmt.Sprintf("%d", time.Now().Nanosecond())))
+	for _, target := range targets {
+		h.Write([]byte(target))
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func zipFolder(v Volume, baseFolder, folderPath string, zipW *zip.Writer) error {
+	if !strings.HasSuffix(baseFolder, "/") {
+		baseFolder += "/"
+	}
+	res := v.List(folderPath)
+	for i := 0; i < len(res); i++ {
+		currentPath := filepath.Join(folderPath, res[i].Name)
+		if res[i].Dirs == 1 {
+			err := zipFolder(v, baseFolder, currentPath, zipW)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		relPath := strings.TrimPrefix(currentPath, baseFolder)
+		fheader := zip.FileHeader{
+			Name:     relPath,
+			Modified: time.Now().UTC(),
+			Method:   zip.Deflate,
+		}
+
+		zipFile, err := zipW.CreateHeader(&fheader)
+		if err != nil {
+			return err
+		}
+		reader, err := v.GetFile(currentPath)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(zipFile, reader)
+		_ = reader.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func calculateFolderSize(v Volume, folderPath string) int64 {
+	var totalSize int64
+	resInfos := v.List(folderPath)
+	for i := 0; i < len(resInfos); i++ {
+		currentPath := filepath.Join(folderPath, resInfos[i].Name)
+		if resInfos[i].Dirs == 1 {
+			totalSize += calculateFolderSize(v, currentPath)
+		}
+		totalSize += resInfos[i].Size
+	}
+	return totalSize
 }

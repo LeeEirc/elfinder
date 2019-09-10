@@ -8,7 +8,7 @@ var defaultOptions = options{
 	CopyOverwrite: 1}
 
 type ElfResponse struct {
-	Api        string    `json:"api,omitempty"`        // The version number of the protocol, must be >= 2.1, ATTENTION - return api ONLY for init request!
+	Api        float64    `json:"api,omitempty"`        // The version number of the protocol, must be >= 2.1, ATTENTION - return api ONLY for init request!
 	Cwd        FileDir   `json:"cwd,omitempty"`        // Current Working Directory - information about the current directory. Information about File/Directory
 	Files      []FileDir `json:"files"`                // array of objects - files and directories in current directory. If parameter tree == true, then added to the folder of the directory tree to a given depth. The order of files is not important. Note you must include the top-level volume objects here as well (i.e. cwd is repeated here, in addition to other volumes)
 	NetDrivers []string  `json:"netDrivers,omitempty"` // Network protocols list which can be mounted on the fly (using netmount command). Now only ftp supported.
@@ -25,7 +25,8 @@ type ElfResponse struct {
 	Changed []FileDir         `json:"changed,omitempty"` // for mkdir
 	Hashes  map[string]string `json:"hashes,omitempty"`  // for mkdir
 	List    []string          `json:"list,omitempty"`    // for ls
-	Size 	int64 `json:"size,omitempty"` // for size
+	Size    int64             `json:"size,omitempty"`    // for size
+	Zipdl   map[string]string `json:"zipdl,omitempty"`   // zipdl
 
 	Name        string `json:"_name,omitempty"`
 	Chunkmerged string `json:"_chunkmerged,omitempty"`
@@ -50,7 +51,6 @@ type options struct {
 	Archivers     archivers `json:"archivers,omitempty"`
 	CopyOverwrite int64     `json:"copyOverwrite,omitempty"` // (Number) Whether or not to overwrite files with the same name on the current volume when copy
 	// ToDo https://github.com/Studio-42/elFinder/wiki/Client-Server-API-2.1#open
-
 }
 
 type archivers struct {
