@@ -67,7 +67,8 @@ func NewElFinderConnectorWithOption(vs Volumes, option map[string]string) *ElFin
 	if zipTmpPath == "" {
 		zipTmpPath = defaultTmpPath
 	}
-	return &ElFinderConnector{Volumes: volumeMap, zipTmpPath: zipTmpPath, zipMaxSize: zipMaxSize}
+	return &ElFinderConnector{Volumes: volumeMap, req: &ELFRequest{}, res: &ElfResponse{},
+		zipTmpPath: zipTmpPath, zipMaxSize: zipMaxSize}
 }
 
 type ElFinderConnector struct {
