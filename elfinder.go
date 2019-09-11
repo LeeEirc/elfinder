@@ -467,7 +467,6 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		elf.tree()
 	case "file":
 		readFile, filename, err := elf.file()
-		defer readFile.Close()
 		if err != nil {
 			elf.res.Error = err.Error()
 		} else {
@@ -483,6 +482,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			}
 			_, err := io.Copy(rw, readFile)
 			if err == nil {
+				_ = readFile.Close()
 				log.Printf("download file %s successful", filename)
 				return
 			} else {
@@ -647,6 +647,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 					rw.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 					rw.Header().Set("Content-Type", mimetype)
 					if _, err = io.Copy(rw, zipFd); err == nil {
+						_ = zipFd.Close()
 						delTmpFilePath(fileKey)
 						return
 					}
@@ -757,7 +758,7 @@ func (elf *ElFinderConnector) zipdl() {
 	}
 
 	zipWriter = zip.NewWriter(dstFd)
-	for i:=0; i<len(zipVs);i++ {
+	for i := 0; i < len(zipVs); i++ {
 		v := zipVs[i]
 		path := zipPaths[i]
 		info, err := v.Info(path)
@@ -785,12 +786,12 @@ func (elf *ElFinderConnector) zipdl() {
 				goto endErr
 			}
 			_, err = io.Copy(zipFile, reader)
-			_ = reader.Close()
 			if err != nil {
 				log.Println("Get file err:", err.Error())
 				ret.Error = err.Error()
 				goto endErr
 			}
+			_ = reader.Close()
 		} else {
 			if err := zipFolder(v, filepath.Dir(path), path, zipWriter); err != nil {
 				log.Println("create tmp zip file err: ", err)
@@ -810,7 +811,7 @@ func (elf *ElFinderConnector) zipdl() {
 	zipRes["file"] = zipFileKey
 	zipRes["name"] = filename
 	ret.Zipdl = zipRes
-	endErr:
+endErr:
 	elf.res = &ret
 
 }
@@ -854,10 +855,10 @@ func zipFolder(v Volume, baseFolder, folderPath string, zipW *zip.Writer) error 
 			return err
 		}
 		_, err = io.Copy(zipFile, reader)
-		_ = reader.Close()
 		if err != nil {
 			return err
 		}
+		_ = reader.Close()
 	}
 	return nil
 }
