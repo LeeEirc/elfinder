@@ -128,6 +128,8 @@ func (f *LocalFileVolume) UploadFile(dirPath, uploadPath, filename string, reade
 	switch {
 	case strings.Contains(uploadPath, filename):
 		realPath = filepath.Join(dirPath, strings.TrimPrefix(uploadPath, "/"))
+	case uploadPath != "":
+		realPath = filepath.Join(dirPath, strings.TrimPrefix(uploadPath, "/"), filename)
 	default:
 		realPath = filepath.Join(dirPath, filename)
 

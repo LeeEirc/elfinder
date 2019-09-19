@@ -212,6 +212,7 @@ func (elf *ElFinderConnector) parents() {
 
 func (elf *ElFinderConnector) mkDir() {
 	added := make([]FileDir, 0)
+	hashs := make(map[string]string)
 	IDAndTarget := strings.Split(elf.req.Target, "_")
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
@@ -235,9 +236,11 @@ func (elf *ElFinderConnector) mkDir() {
 				break
 			}
 			added = append(added, fileDir)
+			hashs[name] = name
 		}
 	}
 	elf.res.Added = added
+	elf.res.Hashes= hashs
 }
 
 func (elf *ElFinderConnector) mkFile() {
