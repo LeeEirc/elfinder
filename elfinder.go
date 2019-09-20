@@ -67,7 +67,7 @@ func NewElFinderConnectorWithOption(vs Volumes, option map[string]string) *ElFin
 	if zipTmpPath == "" {
 		zipTmpPath = defaultTmpPath
 	}
-	return &ElFinderConnector{Volumes: volumeMap, defaultV: vs[0],req: &ELFRequest{}, res: &ElfResponse{},
+	return &ElFinderConnector{Volumes: volumeMap, defaultV: vs[0], req: &ELFRequest{}, res: &ElfResponse{},
 		zipTmpPath: zipTmpPath, zipMaxSize: zipMaxSize}
 }
 
@@ -240,7 +240,7 @@ func (elf *ElFinderConnector) mkDir() {
 		}
 	}
 	elf.res.Added = added
-	elf.res.Hashes= hashs
+	elf.res.Hashes = hashs
 }
 
 func (elf *ElFinderConnector) mkFile() {
@@ -482,7 +482,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 				rw.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename=="%s"`, filename))
 			}
 			if req.Form.Get("cpath") != "" {
-				http.SetCookie(rw, &http.Cookie{Name: fmt.Sprintf("elfdl%s", req.Form.Get("reqid")), Value: "1"})
+				http.SetCookie(rw, &http.Cookie{Path: req.Form.Get("cpath"), Name: "elfdl" + req.Form.Get("reqid"), Value: "1"})
 			}
 			_, err := io.Copy(rw, readFile)
 			if err == nil {
@@ -667,6 +667,10 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		default:
 			elf.zipdl()
 		}
+	case "abort":
+		rw.WriteHeader(http.StatusNoContent)
+		return
+
 	default:
 		elf.res.Error = errUnknownCmd
 	}
