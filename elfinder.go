@@ -152,6 +152,9 @@ func (elf *ElFinderConnector) open() {
 		for _, item := range elf.Volumes {
 			ret.Files = append(ret.Files, item.RootFileDir())
 		}
+		for _, item := range v.Parents(path,0){
+			ret.Files = append(ret.Files, item)
+		}
 	}
 	elf.res = &ret
 }
