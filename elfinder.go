@@ -421,6 +421,9 @@ func (elf *ElFinderConnector) search() {
 	if err != nil {
 		ret.Error = err
 	}
+	if ret.Files == nil {
+		ret.Files = make([]FileDir, 0)
+	}
 	elf.res = &ret
 }
 

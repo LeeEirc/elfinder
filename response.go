@@ -60,24 +60,25 @@ type archivers struct {
 }
 
 type FileDir struct {
-	Name     string  `json:"name,omitempty"`  // name of file/dir. Required
-	Hash     string  `json:"hash,omitempty"`  //  hash of current file/dir path, first symbol must be letter, symbols before _underline_ - volume id, Required.
-	Phash    string  `json:"phash,omitempty"` // hash of parent directory. Required except roots dirs.
-	Mime     string  `json:"mime,omitempty"`  // mime type. Required.
-	Ts       int64   `json:"ts,omitempty"`    // file modification time in unix timestamp. Required.
-	Size     int64   `json:"size,omitempty"`  // file size in bytes
-	Dirs     byte    `json:"dirs,omitempty"`  // Only for directories. Marks if directory has child directories inside it. 0 (or not set) - no, 1 - yes. Do not need to calculate amount.
-	Read     byte    `json:"read,omitempty"`  // is readable
-	Write    byte    `json:"write,omitempty"` // is writable
-	Isroot   byte    `json:"isroot,omitempty"`
-	Locked   byte    `json:"locked,omitempty"`   // is file locked. If locked that object cannot be deleted, renamed or moved
-	Tmb      string  `json:"tmb,omitempty"`      // Only for images. Thumbnail file name, if file do not have thumbnail yet, but it can be generated than it must have value "1"
-	Alias    string  `json:"alias,omitempty"`    // For symlinks only. Symlink target path.
-	Thash    string  `json:"thash,omitempty"`    // For symlinks only. Symlink target hash.
-	Dim      string  `json:"dim,omitempty"`      // For images - file dimensions. Optionally.
-	Isowner  bool    `json:"isowner,omitempty"`  // has ownership. Optionally.
-	Cssclr   string  `json:"cssclr,omitempty"`   // CSS class name for holder icon. Optionally. It can include to options.
-	Volumeid string  `json:"volumeid,omitempty"` // Volume id. For directory only. It can include to options.
-	Netkey   string  `json:"netkey,omitempty"`   // Netmount volume unique key, Required for netmount volume. It can include to options.
-	Options  options `json:"options,omitempty"`  // For volume root only. This value is same to cwd.options.
+	Name     string                 `json:"name,omitempty"`  // name of file/dir. Required
+	Hash     string                 `json:"hash,omitempty"`  //  hash of current file/dir path, first symbol must be letter, symbols before _underline_ - volume id, Required.
+	Phash    string                 `json:"phash,omitempty"` // hash of parent directory. Required except roots dirs.
+	Mime     string                 `json:"mime,omitempty"`  // mime type. Required.
+	Ts       int64                  `json:"ts,omitempty"`    // file modification time in unix timestamp. Required.
+	Size     int64                  `json:"size,omitempty"`  // file size in bytes
+	Dirs     byte                   `json:"dirs,omitempty"`  // Only for directories. Marks if directory has child directories inside it. 0 (or not set) - no, 1 - yes. Do not need to calculate amount.
+	Read     byte                   `json:"read,omitempty"`  // is readable
+	Write    byte                   `json:"write,omitempty"` // is writable
+	Isroot   byte                   `json:"isroot,omitempty"`
+	Locked   byte                   `json:"locked,omitempty"`   // is file locked. If locked that object cannot be deleted, renamed or moved
+	Tmb      string                 `json:"tmb,omitempty"`      // Only for images. Thumbnail file name, if file do not have thumbnail yet, but it can be generated than it must have value "1"
+	Alias    string                 `json:"alias,omitempty"`    // For symlinks only. Symlink target path.
+	Thash    string                 `json:"thash,omitempty"`    // For symlinks only. Symlink target hash.
+	Dim      string                 `json:"dim,omitempty"`      // For images - file dimensions. Optionally.
+	Isowner  bool                   `json:"isowner,omitempty"`  // has ownership. Optionally.
+	Cssclr   string                 `json:"cssclr,omitempty"`   // CSS class name for holder icon. Optionally. It can include to options.
+	Volumeid string                 `json:"volumeid,omitempty"` // Volume id. For directory only. It can include to options.
+	Netkey   string                 `json:"netkey,omitempty"`   // Netmount volume unique key, Required for netmount volume. It can include to options.
+	Options  options                `json:"options,omitempty"`  // For volume root only. This value is same to cwd.options.
+	Debug    map[string]interface{} `json:"debug,omitempty"`    // For volume root only. This value is same to cwd.options.
 }
