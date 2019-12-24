@@ -418,8 +418,8 @@ func (elf *ElFinderConnector) search() {
 	v := elf.getVolume(IDAndTarget[0])
 	path, _ := elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
 	ret.Files, err = v.Search(path, elf.req.QueryKey, elf.req.Mimes...)
-	if err != nil || len(ret.Files) == 0 {
-		ret.Error = errFolderNotFound
+	if err != nil {
+		ret.Error = err
 	}
 	elf.res = &ret
 }
