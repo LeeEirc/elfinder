@@ -29,7 +29,9 @@ type ELFRequest struct {
 	Type       string   `form:"type"`
 	MakeDir    bool     `form:"makedir"`
 	Range      string   `form:"range"`
-	Download   string	`form:"download"`
+	Download   string   `form:"download"`
+	QueryKey   string   `form:"q"`
+	Mimes      []string `form:"mimes[]"`
 }
 
 type ChunkRange struct {

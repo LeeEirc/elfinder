@@ -152,7 +152,7 @@ func (elf *ElFinderConnector) open() {
 		for _, item := range elf.Volumes {
 			ret.Files = append(ret.Files, item.RootFileDir())
 		}
-		for _, item := range v.Parents(path,0){
+		for _, item := range v.Parents(path, 0) {
 			ret.Files = append(ret.Files, item)
 		}
 	}
@@ -412,7 +412,16 @@ func (elf *ElFinderConnector) rm() {
 }
 
 func (elf *ElFinderConnector) search() {
-
+	var ret = ElfResponse{Files: []FileDir{}}
+	var err error
+	IDAndTarget := strings.Split(elf.req.Target, "_")
+	v := elf.getVolume(IDAndTarget[0])
+	path, _ := elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
+	ret.Files, err = v.Search(path, elf.req.QueryKey, elf.req.Mimes...)
+	if err != nil || len(ret.Files) == 0 {
+		ret.Error = errNotFound
+	}
+	elf.res = &ret
 }
 
 func (elf *ElFinderConnector) size() {
@@ -673,7 +682,8 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	case "abort":
 		rw.WriteHeader(http.StatusNoContent)
 		return
-
+	case "search":
+		elf.search()
 	default:
 		elf.res.Error = errUnknownCmd
 	}
