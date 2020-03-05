@@ -220,13 +220,13 @@ func (elf *ElFinderConnector) mkDir() {
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
 	if err != nil {
-		elf.res.Error = []string{errMkdir, elf.req.Name}
+		elf.res.Error = []string{errMkdir, elf.req.Name, err.Error()}
 		return
 	}
 	if elf.req.Name != "" {
 		fileDir, err := v.MakeDir(path, elf.req.Name)
 		if err != nil {
-			elf.res.Error = []string{errMkdir, elf.req.Name}
+			elf.res.Error = []string{errMkdir, elf.req.Name, err.Error()}
 			return
 		}
 		added = append(added, fileDir)
@@ -235,7 +235,7 @@ func (elf *ElFinderConnector) mkDir() {
 		for _, name := range elf.req.Dirs {
 			fileDir, err := v.MakeDir(path, name)
 			if err != nil {
-				elf.res.Error = []string{errMkdir, elf.req.Name}
+				elf.res.Error = []string{errMkdir, elf.req.Name, err.Error()}
 				break
 			}
 			added = append(added, fileDir)
@@ -251,12 +251,12 @@ func (elf *ElFinderConnector) mkFile() {
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
 	if err != nil {
-		elf.res.Error = []string{"errMkfile", elf.req.Name}
+		elf.res.Error = []string{"errMkfile", elf.req.Name, err.Error()}
 		return
 	}
 	fileDir, err := v.MakeFile(path, elf.req.Name)
 	if err != nil {
-		elf.res.Error = []string{"errMkfile", elf.req.Name}
+		elf.res.Error = []string{"errMkfile", elf.req.Name, err.Error()}
 		return
 	}
 	elf.res.Added = []FileDir{fileDir}
@@ -486,8 +486,15 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		elf.tree()
 	case "file":
 		readFile, filename, err := elf.file()
+		if req.Form.Get("cpath") != "" {
+			http.SetCookie(rw, &http.Cookie{Path: req.Form.Get("cpath"), Name: "elfdl" + req.Form.Get("reqid"), Value: "1"})
+		}
 		if err != nil {
+			log.Printf("Download file err: %s", err)
 			elf.res.Error = err.Error()
+			rw.WriteHeader(403)
+			_, _ = rw.Write([]byte(err.Error()))
+			return
 		} else {
 			mimeType := mime.TypeByExtension(filepath.Ext(filename))
 			rw.Header().Set("Content-Type", mimeType)
@@ -496,12 +503,9 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			} else {
 				rw.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename=="%s"`, filename))
 			}
-			if req.Form.Get("cpath") != "" {
-				http.SetCookie(rw, &http.Cookie{Path: req.Form.Get("cpath"), Name: "elfdl" + req.Form.Get("reqid"), Value: "1"})
-			}
 			_, err := io.Copy(rw, readFile)
+			defer readFile.Close()
 			if err == nil {
-				_ = readFile.Close()
 				log.Printf("download file %s successful", filename)
 				return
 			} else {
@@ -541,26 +545,29 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		files := req.MultipartForm.File["upload[]"]
 		added := make([]FileDir, 0, len(files))
 		errs := make([]string, 0, len(files))
+		if len(errs) == 0 {
+			errs = append(errs, errUploadFile)
+		}
 		if elf.req.Cid != 0 && elf.req.Chunk != "" {
 			re, err := regexp.Compile(`(.*?)\.([0-9][0-9]*?_[0-9][0-9]*?)(\.part)`)
 			if err != nil {
-				elf.res.Error = errFolderUpload
+				errs = append(errs, err.Error())
 				break
 			}
 			ch := re.FindStringSubmatch(elf.req.Chunk)
 			if len(ch) != 4 {
-				elf.res.Error = errUploadFile
+				errs = append(errs, err.Error())
 				break
 			}
 			t := strings.Split(ch[2], "_")
 			currentPart, err := strconv.Atoi(t[0])
 			if err != nil {
-				elf.res.Error = errUploadFile
+				errs = append(errs, err.Error())
 				break
 			}
 			totalPart, err := strconv.Atoi(t[1])
 			if err != nil {
-				elf.res.Error = errUploadFile
+				errs = append(errs, err.Error())
 				break
 			}
 			rangeData := strings.Split(elf.req.Range, ",")
@@ -570,17 +577,17 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			}
 			offSet, err := strconv.Atoi(rangeData[0])
 			if err != nil {
-				elf.res.Error = errUploadFile
+				errs = append(errs, err.Error())
 				break
 			}
 			chunkLength, err := strconv.Atoi(rangeData[1])
 			if err != nil {
-				elf.res.Error = errUploadFile
+				errs = append(errs, err.Error())
 				break
 			}
 			totalSize, err := strconv.Atoi(rangeData[2])
 			if err != nil {
-				elf.res.Error = errUploadFile
+				errs = append(errs, err.Error())
 				break
 			}
 			filename := ch[1]
@@ -609,12 +616,12 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			// Chunk merge request
 			re, err := regexp.Compile(`([0-9]*)_([0-9]*)_(.*)`)
 			if err != nil {
-				elf.res.Error = errFolderUpload
+				errs = append(errs, err.Error())
 				break
 			}
 			ch := re.FindStringSubmatch(elf.req.Chunk)
 			if len(ch) != 4 {
-				elf.res.Error = errFolderUpload
+				errs = append(errs, err.Error())
 				break
 			}
 			var uploadPath string
@@ -639,14 +646,16 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 				}
 				result, err := v.UploadFile(dirpath, uploadPath, uploadFile.Filename, f)
 				if err != nil {
-					errs = append(errs, "errUpload")
+					errs = append(errs, err.Error())
 					continue
 				}
 				added = append(added, result)
 			}
 
 		}
-		elf.res.Warning = errs
+		if len(errs) > 1 {
+			elf.res.Warning = errs
+		}
 		elf.res.Added = added
 	case "zipdl":
 		switch elf.req.Download {
