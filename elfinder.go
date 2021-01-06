@@ -123,7 +123,7 @@ func (elf *ElFinderConnector) open() {
 	} else {
 		path, err = elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
 		if err != nil {
-			elf.res.Error = []string{"errFolderNotFound"}
+			elf.res.Error = []string{err.Error()}
 			return
 		}
 	}
@@ -135,7 +135,7 @@ func (elf *ElFinderConnector) open() {
 		v = elf.getVolume(IDAndTarget[0])
 		ret.Cwd, err = v.Info(path)
 		if err != nil {
-			elf.res.Error = []string{"errFolderNotFound"}
+			elf.res.Error = []string{err.Error()}
 			return
 		}
 		ret.Files = v.List(path)
@@ -270,7 +270,7 @@ func (elf *ElFinderConnector) paste() {
 	dstIDAndTarget := strings.Split(elf.req.Dst, "_")
 	dstPath, err := elf.parseTarget(strings.Join(dstIDAndTarget[1:], "_"))
 	if err != nil {
-		elf.res.Error = errNotFound
+		elf.res.Error = err
 		return
 	}
 	dstVol := elf.getVolume(dstIDAndTarget[0])
