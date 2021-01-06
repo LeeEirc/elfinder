@@ -123,7 +123,7 @@ func (elf *ElFinderConnector) open() {
 	} else {
 		path, err = elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
 		if err != nil {
-			elf.res.Error = []string{err.Error()}
+			elf.res.Error = []string{errAccess, err.Error()}
 			return
 		}
 	}
@@ -135,7 +135,7 @@ func (elf *ElFinderConnector) open() {
 		v = elf.getVolume(IDAndTarget[0])
 		ret.Cwd, err = v.Info(path)
 		if err != nil {
-			elf.res.Error = []string{err.Error()}
+			elf.res.Error = []string{errAccess, err.Error()}
 			return
 		}
 		ret.Files = v.List(path)
