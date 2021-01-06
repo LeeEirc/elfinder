@@ -393,6 +393,7 @@ func (elf *ElFinderConnector) resize() {
 
 func (elf *ElFinderConnector) rm() {
 	removed := make([]string, 0, len(elf.req.Targets))
+	errs := make([]string, 0, len(elf.req.Target))
 	for _, target := range elf.req.Targets {
 		IDAndTarget := strings.Split(target, "_")
 		v := elf.getVolume(IDAndTarget[0])
@@ -401,14 +402,17 @@ func (elf *ElFinderConnector) rm() {
 			log.Println(err)
 			continue
 		}
-		err = v.Remove(path)
-		if err != nil {
+		if err := v.Remove(path); err != nil {
+			errs = append(errs, []string{errRm, err.Error()}...)
 			log.Println(err)
 			continue
 		}
 		removed = append(removed, target)
 	}
 	elf.res.Removed = removed
+	if len(errs) > 0 {
+		elf.res.Error = errs
+	}
 }
 
 func (elf *ElFinderConnector) search() {
