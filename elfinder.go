@@ -431,6 +431,52 @@ func (elf *ElFinderConnector) search() {
 	elf.res = &ret
 }
 
+func (elf *ElFinderConnector) duplicate() {
+	added := make([]FileDir, 0, len(elf.req.Targets))
+	for _, target := range elf.req.Targets {
+		srcIDAndTarget := strings.Split(target, "_")
+		srcVol := elf.getVolume(srcIDAndTarget[0])
+		srcPath, err := elf.parseTarget(strings.Join(srcIDAndTarget[1:], "_"))
+		if err != nil {
+			log.Println("parse path err: ", err)
+			continue
+		}
+		srcFileDir, err := srcVol.Info(srcPath)
+		if err != nil {
+			log.Println("Get File err: ", err)
+			continue
+		}
+		dstPath := filepath.Dir(srcPath)
+		newName := createDuplicateName(srcFileDir.Name)
+		if srcFileDir.Dirs == 1 {
+			newDstDirFile, err := srcVol.MakeDir(dstPath, newName)
+			if err != nil {
+				log.Printf("Make Dir err: %s", err.Error())
+				elf.res.Error = []string{errMsg, err.Error()}
+				break
+			}
+			added = append(added, newDstDirFile)
+			newAddFiles := elf.copyFolder(filepath.Join(dstPath, newDstDirFile.Name), srcPath, srcVol, srcVol)
+			added = append(added, newAddFiles...)
+		} else {
+			srcFd, err := srcVol.GetFile(srcPath)
+			if err != nil {
+				log.Println("Get File err: ", err.Error())
+				elf.res.Error = []string{errMsg, err.Error()}
+				break
+			}
+			dstFdInfo, err := srcVol.Paste(dstPath, newName, "_duplicate_", srcFd)
+			if err != nil {
+				log.Println("Duplicate path err: ", err)
+				elf.res.Error = []string{errMsg, err.Error()}
+				break
+			}
+			added = append(added, dstFdInfo)
+		}
+	}
+	elf.res.Added = added
+}
+
 func (elf *ElFinderConnector) size() {
 	var totalSize int64
 	for _, target := range elf.req.Targets {
@@ -700,6 +746,8 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 		return
 	case "search":
 		elf.search()
+	case "duplicate":
+		elf.duplicate()
 	default:
 		elf.res.Error = errUnknownCmd
 	}
@@ -911,4 +959,12 @@ func calculateFolderSize(v Volume, folderPath string) int64 {
 		totalSize += resInfos[i].Size
 	}
 	return totalSize
+}
+
+func createDuplicateName(name string) string {
+	newFilename := strings.TrimSuffix(name,
+		filepath.Ext(name))
+	newFilename += "_duplicate_" + time.Now().Format("2006-01-02-15-04-05")
+	newFilename += filepath.Ext(name)
+	return newFilename
 }
