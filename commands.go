@@ -23,3 +23,7 @@ func CmdFile(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) 
 func CmdParents(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
 }
+
+func CmdDir(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter){
+
+}
