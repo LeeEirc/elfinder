@@ -251,12 +251,12 @@ func (elf *ElFinderConnector) mkFile() {
 	v := elf.getVolume(IDAndTarget[0])
 	path, err := elf.parseTarget(strings.Join(IDAndTarget[1:], "_"))
 	if err != nil {
-		elf.res.Error = []string{"errMkfile", elf.req.Name, err.Error()}
+		elf.res.Error = []string{errMkfile, elf.req.Name, err.Error()}
 		return
 	}
 	fileDir, err := v.MakeFile(path, elf.req.Name)
 	if err != nil {
-		elf.res.Error = []string{"errMkfile", elf.req.Name, err.Error()}
+		elf.res.Error = []string{errMkfile, elf.req.Name, err.Error()}
 		return
 	}
 	elf.res.Added = []FileDir{fileDir}
