@@ -24,7 +24,7 @@ func CmdParents(elf *ElFinderConnector, req *http.Request, rw http.ResponseWrite
 
 }
 
-func CmdDir(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter){
+func CmdDir(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
 }
 
@@ -99,21 +99,53 @@ type DebugOption struct {
 */
 
 type Option struct {
-	Path            string      `json:"path"`
-	URL             string      `json:"url"`
-	TmbURL          string      `json:"tmbURL"`
-	Separator       string      `json:"separator"`
-	Disabled        []string    `json:"disabled"`
-	CopyOverwrite   int         `json:"copyOverwrite"`
-	UploadOverwrite int         `json:"uploadOverwrite"`
-	UploadMaxSize   int         `json:"uploadMaxSize"`
-	UploadMaxConn   int         `json:"uploadMaxConn"`
-	UploadMime      interface{} `json:"uploadMime"`
-	DispInlineRegex string      `json:"dispInlineRegex"`
-	JpgQuality      int         `json:"jpgQuality"`
-	SyncChkAsTs     int         `json:"syncChkAsTs"`
-	SyncMinMs       int         `json:"syncMinMs"`
-	UiCmdMap        interface{} `json:"uiCmdMap"`
-	I18nFolderName  int         `json:"i18nFolderName"`
-	Archivers       interface{}         `json:"archivers"`
+	Path            string            `json:"path"`
+	URL             string            `json:"url"`
+	TmbURL          string            `json:"tmbURL"`
+	Separator       string            `json:"separator"`
+	Disabled        []string          `json:"disabled"`
+	CopyOverwrite   int               `json:"copyOverwrite"`
+	UploadOverwrite int               `json:"uploadOverwrite"`
+	UploadMaxSize   int               `json:"uploadMaxSize"`
+	UploadMaxConn   int               `json:"uploadMaxConn"`
+	UploadMime      interface{}       `json:"uploadMime"`
+	DispInlineRegex string            `json:"dispInlineRegex"`
+	JpgQuality      int               `json:"jpgQuality"`
+	SyncChkAsTs     int               `json:"syncChkAsTs"`
+	SyncMinMs       int               `json:"syncMinMs"`
+	UiCmdMap        map[string]string `json:"uiCmdMap"`
+	I18nFolderName  int               `json:"i18nFolderName"`
+	Archivers       ArchiverOption    `json:"archivers"`
 }
+
+type ArchiverOption struct {
+	Create    []string          `json:"create"`
+	Extract   []string          `json:"extract"`
+	Createext map[string]string `json:"createext"`
+}
+
+type UploadMimeOption struct {
+	Allow []string `json:"allow"`
+
+	Deny []string `json:"deny"`
+
+	FirstOrder string `json:"firstOrder"`
+}
+
+var (
+	createextMap = map[string]string{
+		"application/zip":    "zip",
+		"application/x-tar":  "tar",
+		"application/x-gzip": "tgz",
+	}
+	extractArray = []string{
+		"application/zip",
+		"application/x-tar",
+		"application/x-gzip",
+	}
+	createArray = []string{
+		"application/zip",
+		"application/x-tar",
+		"application/x-gzip",
+	}
+)
