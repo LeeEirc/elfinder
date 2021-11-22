@@ -1,8 +1,21 @@
 package elfinder
 
-import "net/http"
+import (
+	"io/fs"
+	"net/http"
+)
 
-type CommandFunc func(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter)
+type NewVolume interface {
+	fs.FS
+	fs.FileInfo
+}
+
+type Connector struct {
+	defaultVol NewVolume
+	vols       []NewVolume
+}
+
+type CommandFunc func(connector *Connector, req *http.Request, rw http.ResponseWriter)
 
 func CmdOpen(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
@@ -28,25 +41,29 @@ func CmdDir(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
 }
 
-func OpenCommand(req *http.Request, rw http.ResponseWriter) {
+func OpenCommand(connector *Connector, req *OpenRequest, rw http.ResponseWriter) {
 
 }
 
-type OpenParams struct {
-	Init   bool   `json:"init"`
+type OpenRequest struct {
+	Init   string `json:"init"` //  (true|false|not set)
 	Target string `json:"target"`
 	Tree   bool   `json:"tree"`
 }
 
+func (o OpenRequest) Name() string {
+	return "open"
+}
+
 type OpenResponse struct {
-	Api        string                 `json:"api"`
-	Cwd        FileDir                `json:"cwd"`
-	Files      []FileDir              `json:"files"`
-	NetDrivers []string               `json:"netDrivers"`
-	UpMaxFile  int                    `json:"uplMaxFile"`
-	UplMaxSize string                 `json:"uplMaxSize"` //  "32M"
-	Options    map[string]interface{} `json:"options"`    // Further information about the folder and its volume
-	Debug      DebugOption            `json:"debug"`      // Debug information, if you specify the corresponding connector option.
+	Api        string      `json:"api,omitempty"`
+	Cwd        FileDir     `json:"cwd"`
+	Files      []FileDir   `json:"files"`
+	NetDrivers []string    `json:"netDrivers,omitempty"`
+	UplMaxFile int         `json:"uplMaxFile"`
+	UplMaxSize string      `json:"uplMaxSize"` //  "32M"
+	Options    Option      `json:"options"`    // Further information about the folder and its volume
+	Debug      DebugOption `json:"debug"`      // Debug information, if you specify the corresponding connector option.
 }
 
 type DebugOption struct {
