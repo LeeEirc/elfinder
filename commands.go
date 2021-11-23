@@ -1,11 +1,39 @@
 package elfinder
 
 import (
+	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 )
 
+const defaultMaxMemory = 32 << 20
+
+const (
+	cmdOpen = "open"
+)
+
+var (
+	GetFormParse = func(req *http.Request) error {
+		return req.ParseForm()
+	}
+	PostFormParse = func(req *http.Request) error {
+		return req.ParseMultipartForm(defaultMaxMemory)
+	}
+)
+var (
+	supportedMethods = map[string]RequestFormParseFunc{
+		http.MethodGet:  GetFormParse,
+		http.MethodPost: PostFormParse,
+	}
+
+	supportedCommands = map[string]CommandHandler{
+		cmdOpen: OpenCommand,
+	}
+)
+
 type NewVolume interface {
+	ID() string
 	fs.FS
 	fs.FileInfo
 }
@@ -15,7 +43,42 @@ type Connector struct {
 	vols       []NewVolume
 }
 
-type CommandFunc func(connector *Connector, req *http.Request, rw http.ResponseWriter)
+func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	formParseFunc, ok := supportedMethods[r.Method]
+	if !ok {
+		msg := fmt.Sprintf("%s Method not allowed", r.Method)
+		http.Error(w, msg, http.StatusMethodNotAllowed)
+		return
+	}
+	if err := formParseFunc(r); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	cmd, err := c.parseCommand(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	handleFunc, ok := supportedCommands[cmd]
+	if !ok {
+		msg := fmt.Sprintf("not supported cmd %s", cmd)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	handleFunc(c, r, w)
+}
+
+func (c *Connector) parseCommand(req *http.Request) (string, error) {
+	var cmd string
+	if cmd = req.URL.Query().Get("cmd"); cmd == "" {
+		return "", errors.New("no found cmd")
+	}
+	return cmd, nil
+}
+
+type CommandHandler func(connector *Connector, req *http.Request, rw http.ResponseWriter)
+
+type RequestFormParseFunc func(req *http.Request) error
 
 func CmdOpen(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
@@ -41,7 +104,7 @@ func CmdDir(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
 }
 
-func OpenCommand(connector *Connector, req *OpenRequest, rw http.ResponseWriter) {
+func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
 
 }
 
@@ -49,10 +112,6 @@ type OpenRequest struct {
 	Init   string `json:"init"` //  (true|false|not set)
 	Target string `json:"target"`
 	Tree   bool   `json:"tree"`
-}
-
-func (o OpenRequest) Name() string {
-	return "open"
 }
 
 type OpenResponse struct {
@@ -125,7 +184,7 @@ type Option struct {
 	UploadOverwrite int               `json:"uploadOverwrite"`
 	UploadMaxSize   int               `json:"uploadMaxSize"`
 	UploadMaxConn   int               `json:"uploadMaxConn"`
-	UploadMime      interface{}       `json:"uploadMime"`
+	UploadMime      UploadMimeOption  `json:"uploadMime"`
 	DispInlineRegex string            `json:"dispInlineRegex"`
 	JpgQuality      int               `json:"jpgQuality"`
 	SyncChkAsTs     int               `json:"syncChkAsTs"`
@@ -150,6 +209,11 @@ type UploadMimeOption struct {
 }
 
 var (
+	defaultArchivers = ArchiverOption{
+		Create:    createArray,
+		Extract:   extractArray,
+		Createext: createextMap,
+	}
 	createextMap = map[string]string{
 		"application/zip":    "zip",
 		"application/x-tar":  "tar",
@@ -166,3 +230,12 @@ var (
 		"application/x-gzip",
 	}
 )
+
+func NewDefaultOption() Option {
+	return Option{
+		Separator: Separator,
+		Archivers: defaultArchivers,
+	}
+}
+
+const Separator = "/"
