@@ -1,6 +1,6 @@
 module github.com/LeeEirc/elfinder
 
-go 1.12
+go 1.17
 
 require (
 	github.com/go-playground/form v3.1.4+incompatible
