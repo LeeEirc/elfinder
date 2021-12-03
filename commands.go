@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const defaultMaxMemory = 32 << 20
@@ -41,8 +42,8 @@ var (
 )
 
 type NewVolume interface {
+	Name() string
 	fs.FS
-	fs.FileInfo
 }
 
 func NewConnector(vols ...NewVolume) *Connector {
@@ -59,12 +60,14 @@ func NewConnector(vols ...NewVolume) *Connector {
 	return &Connector{
 		defaultVol: defaultVol,
 		vols:       volsMap,
+		Created:    time.Now(),
 	}
 }
 
 type Connector struct {
 	defaultVol NewVolume
 	vols       map[string]NewVolume
+	Created    time.Time
 }
 
 func (c *Connector) GetVolId(v NewVolume) string {
@@ -122,7 +125,7 @@ func parseTarget(target string) (id, path string, err error) {
 }
 
 func hashPath(id, path string) string {
-	return id + "_" + Encode64(path)
+	return id + "_" + EncodePath(strings.TrimPrefix(path, Separator))
 }
 
 func EncodePath(path string) string {
@@ -134,7 +137,7 @@ func DecodePath(hashPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(path), nil
+	return fmt.Sprintf("/%s", string(path)), nil
 }
 
 var (
@@ -259,37 +262,25 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	}
 	res.UplMaxSize = "32M"
 	var (
-		id     string
-		path   string
-		err    error
-		vol    NewVolume
-		fsinfo fs.FileInfo
+		id   string
+		path string
+		err  error
+		vol  NewVolume
 	)
 	if target == "" {
 		vol = connector.defaultVol
 		id = connector.GetVolId(connector.defaultVol)
-		//path = "/"
-		fsinfo = vol
+		path = fmt.Sprintf("/%s", vol.Name())
 	} else {
 		id, path, err = connector.getVolByTarget(target)
-		log.Print(err)
 		if err != nil {
+			log.Print(err)
 			if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
 				log.Print(jsonErr)
 			}
 			return
 		}
 		vol = connector.vols[id]
-		path = strings.TrimPrefix(path, "/")
-		cmdInfo, err := fs.Stat(vol, path)
-		if err != nil {
-			log.Print(err)
-			if jsonErr := SendJson(rw, NewErr(errNoFoundVol)); jsonErr != nil {
-				log.Print(jsonErr)
-			}
-			return
-		}
-		fsinfo = cmdInfo
 	}
 	if vol == nil || id == "" {
 		log.Print(err)
@@ -299,18 +290,28 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		return
 	}
 
-
-
-	cwd, err2 := CreateFileInfo(id, vol, path, fsinfo)
+	cwd, err2 := CreateFileInfoByPath(id, vol, path)
 	if err2 != nil {
-		log.Print(err2)
+		log.Print("CreateFileInfoByPath", err2)
 		if jsonErr := SendJson(rw, NewErr(err2)); jsonErr != nil {
 			log.Print(jsonErr)
 		}
 		return
 	}
 	res.Cwd = cwd
+	fmt.Println(cwd)
+	fmt.Println(path)
+	resFiles, err := ReadFilesByPath(id, vol, path)
+	if err != nil {
+		log.Print("ReadFilesByPath", err)
+		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+			log.Print(jsonErr)
+		}
+		return
+	}
 	res.Files = append(res.Files, cwd)
+	res.Files = append(res.Files, resFiles...)
+
 	if tree == "1" {
 		var otherTopVols []NewVolume
 		var vids []string
@@ -323,7 +324,8 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		for i := range otherTopVols {
 			vid := vids[i]
 			cvol := otherTopVols[i]
-			cwdItem, err3 := CreateFileInfo(vid, cvol, "", cvol)
+			cvolS, _ := fs.Stat(cvol, "")
+			cwdItem, err3 := CreateFileInfo(vid, cvol, fmt.Sprintf("/%s", vol.Name()), cvolS)
 			if err3 != nil {
 				log.Print(err3)
 				if jsonErr := SendJson(rw, NewErr(err2)); jsonErr != nil {
@@ -394,6 +396,87 @@ func CreateFileInfo(id string, vol NewVolume, path string, cmdInfo fs.FileInfo) 
 		Volumeid:   id + "_",
 		Isroot:     isRoot,
 	}, nil
+}
+
+func CreateFileInfoByPath(id string, vol NewVolume, path string) (FileInfo, error) {
+	pathHash := hashPath(id, path)
+	parentPath := filepath.Dir(path)
+	parentPathHash := hashPath(id, parentPath)
+	isRoot := 0
+	volRootPath := fmt.Sprintf("/%s", vol.Name())
+	if path == volRootPath {
+		isRoot = 1
+		parentPathHash = ""
+	}
+	relativePath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), "/")
+
+	var name string
+	if relativePath == "" {
+		relativePath = "."
+		name = vol.Name()
+	}
+
+	info, err := fs.Stat(vol, relativePath)
+	if err != nil {
+		return FileInfo{}, err
+	}
+	if name == "" {
+		name = info.Name()
+	}
+
+	MimeType := "file"
+	HasDirs := 0
+	if info.IsDir() {
+		MimeType = "directory"
+		HasDirs = 1
+	}
+	Volumeid := ""
+	if HasDirs == 1 {
+		Volumeid = id + "_"
+	}
+
+	return FileInfo{
+		Name:       name,
+		PathHash:   pathHash,
+		ParentHash: parentPathHash,
+		MimeType:   MimeType,
+		Timestamp:  info.ModTime().Unix(),
+		Size:       info.Size(),
+		HasDirs:    HasDirs,
+		ReadAble:   1,
+		WriteAble:  1,
+		Locked:     0,
+		Volumeid:   Volumeid,
+		Isroot:     isRoot,
+	}, nil
+}
+
+func ReadFilesByPath(id string, vol NewVolume, path string) ([]FileInfo, error) {
+	volRootPath := fmt.Sprintf("/%s", vol.Name())
+	dirPath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), "/")
+	if dirPath == "" {
+		dirPath = "."
+	}
+	files, err := fs.ReadDir(vol, dirPath)
+	if err != nil {
+		log.Println("fs.ReadDir ", err)
+		return nil, err
+	}
+
+	var res []FileInfo
+
+	for i := range files {
+		subPath := filepath.Join(path, files[i].Name())
+		info, err := CreateFileInfoByPath(id, vol, subPath)
+		if err != nil {
+			log.Println("CreateFileInfoByPath ", err, subPath)
+			return nil, err
+		}
+		res = append(res, info)
+	}
+
+	return res, nil
+
 }
 
 type OpenRequest struct {

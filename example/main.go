@@ -2,22 +2,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/LeeEirc/elfinder"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
-
-	"github.com/LeeEirc/elfinder"
 )
 
 func main() {
 	mux := http.NewServeMux()
-	dir, _ := os.Getwd()
-	info, _ := os.Stat(dir)
-	lfs := localFs{dir, info}
-	connector := elfinder.NewConnector(&lfs)
+	connector := elfinder.NewConnector(NewLocalV())
 	mux.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./elf/"))))
 	mux.Handle("/connector", connector)
 	fmt.Println("Listen on :8000")
@@ -25,15 +19,29 @@ func main() {
 }
 
 var (
-	_ elfinder.NewVolume = (*localFs)(nil)
+	_ elfinder.NewVolume = (*LocalV)(nil)
 )
 
-type localFs struct {
-	RootPath string
-	fs.FileInfo
+func NewLocalV() elfinder.NewVolume {
+	dir, _ := os.Getwd()
+	//info, _ := os.Stat(dir)
+	//lfs := localFs{dir, info}
+	info, err := os.Stat(dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lfs := os.DirFS(dir)
+	return LocalV{
+		name: info.Name(),
+		FS:   lfs,
+	}
 }
 
-func (l *localFs) Open(name string) (fs.File, error) {
-	path := strings.TrimPrefix(name, l.Name())
-	return os.Open(filepath.Join(l.RootPath, path))
+type LocalV struct {
+	name string
+	fs.FS
+}
+
+func (l LocalV) Name() string {
+	return l.name
 }

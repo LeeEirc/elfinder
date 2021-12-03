@@ -1,16 +1,26 @@
 package elfinder
 
 import (
+	"io/fs"
+	"os"
 	"testing"
 )
 
 func TestDecodePath(t *testing.T) {
-	id, path, err := parseTarget("X0_Lw")
+	path := "/Users/eric/Documents/github/elfinder/example"
+
+	lfs := os.DirFS(path)
+	cwd, err := fs.Stat(lfs, ".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(id, path)
-	//ret := strings.SplitN("X0_Lw", "_", 2)
-	//t.Log(ret)
+	err = fs.WalkDir(lfs, ".", func(path string, d fs.DirEntry, err error) error {
+		t.Log(path, d.IsDir(), d.Name())
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	t.Logf("%+v\n", cwd)
 }
