@@ -353,7 +353,7 @@ func SendJson(w http.ResponseWriter, data interface{}) error {
 	return json.NewEncoder(w).Encode(data)
 }
 
-func CreateFileInfo(id string, vol NewVolume, path string, cmdInfo fs.FileInfo) (FileInfo, error) {
+func CreateFileInfo(id string, vol NewVolume, path string, fsInfo fs.FileInfo) (FileInfo, error) {
 	var (
 		pathHash   string
 		parentHash string
@@ -369,7 +369,7 @@ func CreateFileInfo(id string, vol NewVolume, path string, cmdInfo fs.FileInfo) 
 		isRoot = 1
 	}
 	MimeType = "file"
-	if cmdInfo.IsDir() {
+	if fsInfo.IsDir() {
 		MimeType = "directory"
 		dirItems, err2 := fs.ReadDir(vol, path)
 		if err2 != nil {
@@ -383,12 +383,12 @@ func CreateFileInfo(id string, vol NewVolume, path string, cmdInfo fs.FileInfo) 
 		}
 	}
 	return FileInfo{
-		Name:       cmdInfo.Name(),
+		Name:       fsInfo.Name(),
 		PathHash:   pathHash,
 		ParentHash: parentHash,
 		MimeType:   MimeType,
-		Timestamp:  cmdInfo.ModTime().Unix(),
-		Size:       cmdInfo.Size(),
+		Timestamp:  fsInfo.ModTime().Unix(),
+		Size:       fsInfo.Size(),
 		HasDirs:    HasDirs,
 		ReadAble:   1,
 		WriteAble:  1,

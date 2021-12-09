@@ -27,7 +27,7 @@ type Volume interface {
 	Remove(path string) error
 	Paste(dir, filename, suffix string, reader io.ReadCloser) (FileDir, error)
 	RootFileDir() FileDir
-	Search(path, key string, mimes...string) ([]FileDir, error)
+	Search(path, key string, mimes ...string) ([]FileDir, error)
 }
 
 func NewLocalVolume(path string) *LocalFileVolume {
@@ -266,7 +266,7 @@ func (f *LocalFileVolume) RootFileDir() FileDir {
 	return resFDir
 }
 
-func (f *LocalFileVolume) Search(path, key string, mimes...string) (files []FileDir, err error) {
+func (f *LocalFileVolume) Search(path, key string, mimes ...string) (files []FileDir, err error) {
 	err = filepath.Walk(path, func(dirPath string, info os.FileInfo, err error) error {
 		if strings.Contains(info.Name(), key) {
 			resFDir := FileDir{}

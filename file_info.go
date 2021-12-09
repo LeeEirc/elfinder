@@ -3,25 +3,25 @@ package elfinder
 import "os"
 
 type FileInfo struct {
-	Name       string `json:"name"`
-	PathHash   string `json:"hash"`
-	ParentHash string `json:"phash"`
-	MimeType   string `json:"mime"` // Required
-	Timestamp  int64  `json:"ts"`   // unix timestamp  Required
-	Size       int64  `json:"size"` //file size in bytes
-	HasDirs    int    `json:"dirs"` // Only for directories. Marks if directory has child directories inside it. 0 (or not set)
-	ReadAble   int    `json:"read"`
-	WriteAble  int    `json:"write"`
-	Locked     int    `json:"locked"`
-	TmbImage   string `json:"tmb"`
-	AliasName  string `json:"alias"` // symlinks only. Symlink target path.
-	Thash      string `json:"thash"` //  For symlinks only. Symlink target hash.
-	Dim        string `json:"dim"`
-	IsOwner    bool   `json:"isowner"` // has ownership. Optionally.
-	Csscls     string `json:"csscls"`
-	Volumeid   string `json:"volumeid"` // Volume id. For directory only.
+	Name       string  `json:"name"`
+	PathHash   string  `json:"hash"`
+	ParentHash string  `json:"phash"`
+	MimeType   string  `json:"mime"` // Required
+	Timestamp  int64   `json:"ts"`   // unix timestamp  Required
+	Size       int64   `json:"size"` //file size in bytes
+	HasDirs    int     `json:"dirs"` // Only for directories. Marks if directory has child directories inside it. 0 (or not set)
+	ReadAble   int     `json:"read"`
+	WriteAble  int     `json:"write"`
+	Locked     int     `json:"locked"`
+	TmbImage   string  `json:"tmb"`
+	AliasName  string  `json:"alias"` // symlinks only. Symlink target path.
+	Thash      string  `json:"thash"` //  For symlinks only. Symlink target hash.
+	Dim        string  `json:"dim"`
+	IsOwner    bool    `json:"isowner"` // has ownership. Optionally.
+	Csscls     string  `json:"csscls"`
+	Volumeid   string  `json:"volumeid"` // Volume id. For directory only.
 	Options    *Option `json:"options,omitempty"`
-	Isroot     int   `json:"isroot"`
+	Isroot     int     `json:"isroot"`
 }
 
 func NewFileInfo(vid string, vol NewVolume, info os.FileInfo) {

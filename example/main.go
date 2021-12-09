@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/LeeEirc/elfinder"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/LeeEirc/elfinder"
 )
 
 func main() {
@@ -24,8 +25,6 @@ var (
 
 func NewLocalV() elfinder.NewVolume {
 	dir, _ := os.Getwd()
-	//info, _ := os.Stat(dir)
-	//lfs := localFs{dir, info}
 	info, err := os.Stat(dir)
 	if err != nil {
 		log.Fatal(err)
