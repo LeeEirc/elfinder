@@ -39,3 +39,8 @@ func ReadWritePem(pem os.FileMode) (readable, writable byte) {
 	return
 }
 
+func MD5ID(name string) string {
+	hashInstance := md5.New()
+	hashInstance.Write([]byte(name))
+	return hex.EncodeToString(hashInstance.Sum(nil))
+}

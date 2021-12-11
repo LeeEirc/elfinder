@@ -17,8 +17,9 @@ import (
 const defaultMaxMemory = 32 << 20
 
 const (
-	cmdOpen = "open"
-	cmdInfo = "info"
+	cmdOpen    = "open"
+	cmdInfo    = "info"
+	cmdParents = "parents"
 )
 
 var (
@@ -36,8 +37,9 @@ var (
 	}
 
 	supportedCommands = map[string]CommandHandler{
-		cmdOpen: OpenCommand,
-		cmdInfo: InfoCommand,
+		cmdOpen:    OpenCommand,
+		cmdInfo:    InfoCommand,
+		cmdParents: ParentsCommand,
 	}
 )
 
@@ -47,10 +49,9 @@ type NewVolume interface {
 }
 
 func NewConnector(vols ...NewVolume) *Connector {
-	letter := "l"
 	volsMap := make(map[string]NewVolume, len(vols))
 	for i := range vols {
-		vid := fmt.Sprintf("%s%d", letter, i)
+		vid := MD5ID(vols[i].Name())
 		volsMap[vid] = vols[i]
 	}
 	var defaultVol NewVolume
@@ -95,7 +96,7 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Print("cmd: ", cmd)
+	fmt.Println(r.URL.Query())
 	handleFunc, ok := supportedCommands[cmd]
 	if !ok {
 		msg := fmt.Sprintf("not supported cmd %s", cmd)
@@ -170,7 +171,45 @@ func CmdFile(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) 
 
 }
 
-func CmdParents(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
+func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
+	target := req.URL.Query().Get("target")
+	id, path, err := connector.getVolByTarget(target)
+	if err != nil {
+		log.Print(err)
+		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+			log.Print(jsonErr)
+		}
+		return
+	}
+	fmt.Println(id, path)
+	vol := connector.vols[id]
+	var res ParentsResponse
+	cwdinfo, err := CreateFileInfoByPath(id, vol, path)
+	if err != nil {
+		log.Panicln(err)
+		return
+	}
+	res.Tree = append(res.Tree, cwdinfo)
+	for path != "/" {
+		path = filepath.Dir(path)
+		cwdinfo, err = CreateFileInfoByPath(id, vol, path)
+		if err != nil {
+			log.Panicln(err)
+			return
+		}
+		res.Tree = append(res.Tree, cwdinfo)
+
+		cwdDirs, err := ReadFilesByPath(id, vol, path)
+		if err != nil {
+			log.Panicln(err)
+			return
+		}
+		res.Tree = append(res.Tree, cwdDirs...)
+	}
+
+	if err := SendJson(rw, &res); err != nil {
+		log.Print(err)
+	}
 
 }
 
@@ -253,7 +292,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	target := req.FormValue("target")
 	tree := req.FormValue("tree")
 
-	log.Println("  ", init, "  ", tree, "  ", target)
+	log.Println(req.URL.Query())
 
 	var res OpenResponse
 
@@ -299,8 +338,6 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		return
 	}
 	res.Cwd = cwd
-	fmt.Println(cwd)
-	fmt.Println(path)
 	resFiles, err := ReadFilesByPath(id, vol, path)
 	if err != nil {
 		log.Print("ReadFilesByPath", err)
@@ -342,7 +379,6 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		res.Options = opt
 		res.Cwd.Options = &opt
 	}
-	log.Printf("%+v\n", res)
 	if err := SendJson(rw, &res); err != nil {
 		log.Print(err)
 	}
@@ -494,6 +530,10 @@ type OpenResponse struct {
 	UplMaxSize string       `json:"uplMaxSize"`        //  "32M"
 	Options    Option       `json:"options,omitempty"` // Further information about the folder and its volume
 	Debug      *DebugOption `json:"debug,omitempty"`   // Debug information, if you specify the corresponding connector option.
+}
+
+type ParentsResponse struct {
+	Tree []FileInfo `json:"tree"`
 }
 
 type DebugOption struct {
