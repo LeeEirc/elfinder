@@ -12,7 +12,7 @@ import (
 copy from https://github.com/labstack/echo/blob/902c55355238a226c356d5e6c706a62c76f64197/bind.go#L26
 */
 
-func bindData(destination interface{}, data map[string][]string, tag string) error {
+func BindData(destination interface{}, data map[string][]string, tag string) error {
 	if destination == nil || len(data) == 0 {
 		return nil
 	}
@@ -29,10 +29,6 @@ func bindData(destination interface{}, data map[string][]string, tag string) err
 
 	// !struct
 	if typ.Kind() != reflect.Struct {
-		if tag == "param" || tag == "query" || tag == "header" {
-			// incompatible type, data is probably to be found in the body
-			return nil
-		}
 		return errors.New("binding element must be a struct")
 	}
 
@@ -58,7 +54,7 @@ func bindData(destination interface{}, data map[string][]string, tag string) err
 			// If tag is nil, we inspect if the field is a not BindUnmarshaler struct and try to bind data into it (might contains fields with tags).
 			// structs that implement BindUnmarshaler are binded only when they have explicit tag
 			if _, ok := structField.Addr().Interface().(BindUnmarshaler); !ok && structFieldKind == reflect.Struct {
-				if err := bindData(structField.Addr().Interface(), data, tag); err != nil {
+				if err := BindData(structField.Addr().Interface(), data, tag); err != nil {
 					return err
 				}
 			}

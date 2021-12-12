@@ -170,7 +170,18 @@ func CmdFile(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) 
 }
 
 func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
-	target := req.URL.Query().Get("target")
+	var param struct {
+		Target string `param:"target"`
+	}
+	err := BindData(&param, req.URL.Query(), "param")
+	if err != nil {
+		log.Print(err)
+		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+			log.Print(jsonErr)
+		}
+		return
+	}
+	target := param.Target
 	id, path, err := connector.getVolByTarget(target)
 	if err != nil {
 		log.Print(err)
