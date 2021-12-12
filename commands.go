@@ -20,6 +20,7 @@ const (
 	cmdOpen    = "open"
 	cmdInfo    = "info"
 	cmdParents = "parents"
+	cmdTree    = "tree"
 )
 
 var (
@@ -40,6 +41,7 @@ var (
 		cmdOpen:    OpenCommand,
 		cmdInfo:    InfoCommand,
 		cmdParents: ParentsCommand,
+		cmdTree:    TreeCommand,
 	}
 )
 
@@ -159,10 +161,6 @@ type CommandHandler func(connector *Connector, req *http.Request, rw http.Respon
 
 type RequestFormParseFunc func(req *http.Request) error
 
-func CmdTree(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
-
-}
-
 func CmdLs(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
 }
@@ -181,7 +179,6 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		}
 		return
 	}
-	fmt.Println(id, path)
 	vol := connector.vols[id]
 	var res ParentsResponse
 	cwdinfo, err := CreateFileInfoByPath(id, vol, path)
@@ -215,6 +212,30 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 
 func CmdDir(elf *ElFinderConnector, req *http.Request, rw http.ResponseWriter) {
 
+}
+
+func TreeCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
+	target := req.URL.Query().Get("target")
+	id, path, err := connector.getVolByTarget(target)
+	if err != nil {
+		log.Print(err)
+		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+			log.Print(jsonErr)
+		}
+		return
+	}
+	fmt.Println(id, path)
+	vol := connector.vols[id]
+	var res ParentsResponse
+	cwdinfo, err := ReadFilesByPath(id, vol, path)
+	if err != nil {
+		log.Panicln(err)
+		return
+	}
+	res.Tree = append(res.Tree, cwdinfo...)
+	if err := SendJson(rw, &res); err != nil {
+		log.Print(err)
+	}
 }
 
 func InfoCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
