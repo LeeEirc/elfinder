@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
+	"math/rand"
 	"os"
 )
 
@@ -43,4 +44,14 @@ func MD5ID(name string) string {
 	hashInstance := md5.New()
 	hashInstance.Write([]byte(name))
 	return hex.EncodeToString(hashInstance.Sum(nil))
+}
+
+const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandomStr(n int) string {
+	s := make([]byte, n)
+	for i := range s {
+		s[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(s)
 }
