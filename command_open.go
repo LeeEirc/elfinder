@@ -8,9 +8,9 @@ import (
 )
 
 type OpenRequest struct {
-	Init   string `query:"init"` //  (true|false|not set)
-	Target string `query:"target"`
-	Tree   bool   `query:"tree"`
+	Init   bool   `elfinder:"init"` //  (true|false|not set)
+	Target string `elfinder:"target"`
+	Tree   bool   `elfinder:"tree"`
 }
 
 type OpenResponse struct {
@@ -24,17 +24,17 @@ type OpenResponse struct {
 	Debug      *DebugOption `json:"debug,omitempty"`   // Debug information, if you specify the corresponding connector option.
 }
 
-
 func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
-	init := req.FormValue("init")
-	target := req.FormValue("target")
-	tree := req.FormValue("tree")
+	var param OpenRequest
 
-	log.Println(req.URL.Query())
+	if err := UnmarshalElfinderTag(&param, req.URL.Query()); err != nil {
+		log.Print(err)
+		return
+	}
 
 	var res OpenResponse
 
-	if init == "1" {
+	if param.Init {
 		res.Api = APIVERSION
 	}
 	res.UplMaxSize = "32M"
@@ -44,12 +44,12 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		err  error
 		vol  NewVolume
 	)
-	if target == "" {
+	if param.Target == "" {
 		vol = connector.DefaultVol
 		id = connector.GetVolId(connector.DefaultVol)
 		path = fmt.Sprintf("/%s", vol.Name())
 	} else {
-		id, path, err = connector.GetVolByTarget(target)
+		id, path, err = connector.GetVolByTarget(param.Target)
 		if err != nil {
 			log.Print(err)
 			if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
@@ -87,7 +87,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	res.Files = append(res.Files, cwd)
 	res.Files = append(res.Files, resFiles...)
 
-	if tree == "1" {
+	if param.Tree {
 		var otherTopVols []NewVolume
 		var vids []string
 		for vid := range connector.Vols {

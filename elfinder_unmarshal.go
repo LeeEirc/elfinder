@@ -12,7 +12,10 @@ import (
 copy from https://github.com/labstack/echo/blob/902c55355238a226c356d5e6c706a62c76f64197/bind.go#L26
 */
 
-func BindData(destination interface{}, data map[string][]string, tag string) error {
+const tagName = "elfinder"
+
+func UnmarshalElfinderTag(destination interface{}, data map[string][]string) error {
+
 	if destination == nil || len(data) == 0 {
 		return nil
 	}
@@ -44,24 +47,11 @@ func BindData(destination interface{}, data map[string][]string, tag string) err
 			continue
 		}
 		structFieldKind := structField.Kind()
-		inputFieldName := typeField.Tag.Get(tag)
+		inputFieldName := typeField.Tag.Get(tagName)
 		if typeField.Anonymous && structField.Kind() == reflect.Struct && inputFieldName != "" {
 			// if anonymous struct with query/param/form tags, report an error
 			return errors.New("query/param/form tags are not allowed with anonymous struct field")
 		}
-
-		if inputFieldName == "" {
-			// If tag is nil, we inspect if the field is a not BindUnmarshaler struct and try to bind data into it (might contains fields with tags).
-			// structs that implement BindUnmarshaler are binded only when they have explicit tag
-			if _, ok := structField.Addr().Interface().(BindUnmarshaler); !ok && structFieldKind == reflect.Struct {
-				if err := BindData(structField.Addr().Interface(), data, tag); err != nil {
-					return err
-				}
-			}
-			// does not have explicit tag and is not an ordinary struct - so move to next field
-			continue
-		}
-
 		inputValue, exists := data[inputFieldName]
 		if !exists {
 			// Go json.Unmarshal supports case insensitive binding.  However the
@@ -118,9 +108,7 @@ func unmarshalField(valueKind reflect.Kind, val string, field reflect.Value) (bo
 
 func unmarshalFieldNonPtr(value string, field reflect.Value) (bool, error) {
 	fieldIValue := field.Addr().Interface()
-	if unmarshaler, ok := fieldIValue.(BindUnmarshaler); ok {
-		return true, unmarshaler.UnmarshalParam(value)
-	}
+
 	if unmarshaler, ok := fieldIValue.(encoding.TextUnmarshaler); ok {
 		return true, unmarshaler.UnmarshalText([]byte(value))
 	}
@@ -135,20 +123,6 @@ func unmarshalFieldPtr(value string, field reflect.Value) (bool, error) {
 	}
 	return unmarshalFieldNonPtr(value, field.Elem())
 }
-
-type (
-
-	// DefaultBinder is the default implementation of the Binder interface.
-	DefaultBinder struct{}
-
-	// BindUnmarshaler is the interface used to wrap the UnmarshalParam method.
-	// Types that don't implement this, but do implement encoding.TextUnmarshaler
-	// will use that interface instead.
-	BindUnmarshaler interface {
-		// UnmarshalParam decodes and assigns a value from an form or query param.
-		UnmarshalParam(param string) error
-	}
-)
 
 func setWithProperType(valueKind reflect.Kind, val string, structField reflect.Value) error {
 	// But also call it here, in case we're dealing with an array of BindUnmarshalers

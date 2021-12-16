@@ -12,7 +12,7 @@ import (
 
 func main() {
 	mux := http.NewServeMux()
-	connector := elfinder.NewConnector(NewLocalV())
+	connector := elfinder.NewConnector(elfinder.WithVolumes(NewLocalV()))
 	mux.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./elf/"))))
 	mux.Handle("/connector", connector)
 	fmt.Println("Listen on :8000")
