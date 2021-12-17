@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -44,7 +43,7 @@ var (
 	}
 )
 
-type NewVolume interface {
+type FsVolume interface {
 	Name() string
 	fs.FS
 }
@@ -79,8 +78,14 @@ var (
 
 func parseCommand(req *http.Request) (string, error) {
 	var cmd string
-	if cmd = req.URL.Query().Get("cmd"); cmd == "" {
-		return "", errNoFoundCmd
+	switch req.Method {
+	case http.MethodGet:
+		cmd = req.URL.Query().Get("cmd")
+	case http.MethodPost:
+		cmd = req.Form.Get("cmd")
+	}
+	if cmd == "" {
+		return "", fmt.Errorf("%w: %s", errNoFoundCmd, req.URL)
 	}
 	return cmd, nil
 }
@@ -89,61 +94,12 @@ type CommandHandler func(connector *Connector, req *http.Request, rw http.Respon
 
 type RequestFormParseFunc func(req *http.Request) error
 
-type InfoResponse struct {
-	Files []FileInfo `json:"files"`
-}
-
 func SendJson(w http.ResponseWriter, data interface{}) error {
 	w.Header().Set(HeaderContentType, MIMEApplicationJavaScriptCharsetUTF8)
 	return json.NewEncoder(w).Encode(data)
 }
 
-func CreateFileInfo(id string, vol NewVolume, path string, fsInfo fs.FileInfo) (FileInfo, error) {
-	var (
-		pathHash   string
-		parentHash string
-		MimeType   string
-		HasDirs    int
-		isRoot     int
-	)
-	parentPath := filepath.Dir(path)
-	pathHash = EncodeTarget(id, path)
-	if path != "" && path != "/" {
-		parentHash = EncodeTarget(id, parentPath)
-	} else {
-		isRoot = 1
-	}
-	MimeType = "file"
-	if fsInfo.IsDir() {
-		MimeType = "directory"
-		dirItems, err2 := fs.ReadDir(vol, path)
-		if err2 != nil {
-			return FileInfo{}, err2
-		}
-		for i := range dirItems {
-			if dirItems[i].IsDir() {
-				HasDirs = 1
-				break
-			}
-		}
-	}
-	return FileInfo{
-		Name:       fsInfo.Name(),
-		PathHash:   pathHash,
-		ParentHash: parentHash,
-		MimeType:   MimeType,
-		Timestamp:  fsInfo.ModTime().Unix(),
-		Size:       fsInfo.Size(),
-		HasDirs:    HasDirs,
-		ReadAble:   1,
-		WriteAble:  1,
-		Locked:     0,
-		Volumeid:   id + "_",
-		Isroot:     isRoot,
-	}, nil
-}
-
-func CreateFileInfoByPath(id string, vol NewVolume, path string) (FileInfo, error) {
+func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error) {
 	pathHash := EncodeTarget(id, path)
 	parentPath := filepath.Dir(path)
 	parentPathHash := EncodeTarget(id, parentPath)
@@ -180,6 +136,11 @@ func CreateFileInfoByPath(id string, vol NewVolume, path string) (FileInfo, erro
 		Volumeid = id + "_"
 	}
 
+	var locked int
+	r, w := ParseFileMode(info.Mode())
+	if w == 0 {
+		locked = 1
+	}
 	return FileInfo{
 		Name:       name,
 		PathHash:   pathHash,
@@ -188,15 +149,15 @@ func CreateFileInfoByPath(id string, vol NewVolume, path string) (FileInfo, erro
 		Timestamp:  info.ModTime().Unix(),
 		Size:       info.Size(),
 		HasDirs:    HasDirs,
-		ReadAble:   1,
-		WriteAble:  1,
-		Locked:     0,
+		ReadAble:   r,
+		WriteAble:  w,
+		Locked:     locked,
 		Volumeid:   Volumeid,
 		Isroot:     isRoot,
 	}, nil
 }
 
-func ReadFilesByPath(id string, vol NewVolume, path string) ([]FileInfo, error) {
+func ReadFsVolDir(id string, vol FsVolume, path string) ([]FileInfo, error) {
 	volRootPath := fmt.Sprintf("/%s", vol.Name())
 	dirPath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), "/")
 	if dirPath == "" {
@@ -204,18 +165,16 @@ func ReadFilesByPath(id string, vol NewVolume, path string) ([]FileInfo, error) 
 	}
 	files, err := fs.ReadDir(vol, dirPath)
 	if err != nil {
-		log.Println("fs.ReadDir ", err)
 		return nil, err
 	}
 
 	var res []FileInfo
 
 	for i := range files {
-		subPath := filepath.Join(path, files[i].Name())
-		info, err := CreateFileInfoByPath(id, vol, subPath)
-		if err != nil {
-			log.Println("CreateFileInfoByPath ", err, subPath)
-			return nil, err
+		subPath := strings.Join([]string{path, files[i].Name()}, Separator)
+		info, err2 := StatFsVolFileByPath(id, vol, subPath)
+		if err2 != nil {
+			return nil, err2
 		}
 		res = append(res, info)
 	}

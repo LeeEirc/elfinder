@@ -2,7 +2,6 @@ package elfinder
 
 import (
 	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 )
@@ -25,62 +24,56 @@ type OpenResponse struct {
 }
 
 func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
-	var param OpenRequest
+	var (
+		param OpenRequest
+		res   OpenResponse
+	)
 
 	if err := UnmarshalElfinderTag(&param, req.URL.Query()); err != nil {
-		log.Print(err)
+		connector.Logger.Error(err)
 		return
-	}
-
-	var res OpenResponse
-
-	if param.Init {
-		res.Api = APIVERSION
 	}
 	res.UplMaxSize = "32M"
 	var (
 		id   string
 		path string
 		err  error
-		vol  NewVolume
+		vol  FsVolume
 	)
-	if param.Target == "" {
-		vol = connector.DefaultVol
-		id = connector.GetVolId(connector.DefaultVol)
-		path = fmt.Sprintf("/%s", vol.Name())
-	} else {
-		id, path, err = connector.GetVolByTarget(param.Target)
+	vol = connector.DefaultVol
+	id = connector.GetVolId(connector.DefaultVol)
+	path = fmt.Sprintf("/%s", vol.Name())
+	if param.Target != "" {
+		id, path, err = connector.parseTarget(param.Target)
 		if err != nil {
-			log.Print(err)
+			connector.Logger.Errorf("parse target %s err: %s", param.Target, err)
 			if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
-				log.Print(jsonErr)
+				connector.Logger.Errorf("send response json err: %s", err)
 			}
 			return
 		}
-		vol = connector.Vols[id]
+		vol = connector.GetFsById(id)
 	}
-	if vol == nil || id == "" {
-		log.Print(err)
+	if vol == nil {
+		connector.Logger.Errorf("not found vol by id: %s", id)
 		if jsonErr := SendJson(rw, NewErr(ErrNoFoundVol)); jsonErr != nil {
 			log.Print(jsonErr)
 		}
 		return
 	}
 
-	cwd, err2 := CreateFileInfoByPath(id, vol, path)
+	cwd, err2 := StatFsVolFileByPath(id, vol, path)
 	if err2 != nil {
-		log.Print("CreateFileInfoByPath", err2)
 		if jsonErr := SendJson(rw, NewErr(err2)); jsonErr != nil {
-			log.Print(jsonErr)
+			connector.Logger.Error(jsonErr)
 		}
 		return
 	}
 	res.Cwd = cwd
-	resFiles, err := ReadFilesByPath(id, vol, path)
+	resFiles, err := ReadFsVolDir(id, vol, path)
 	if err != nil {
-		log.Print("ReadFilesByPath", err)
 		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
-			log.Print(jsonErr)
+			connector.Logger.Error(jsonErr)
 		}
 		return
 	}
@@ -88,36 +81,30 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	res.Files = append(res.Files, resFiles...)
 
 	if param.Tree {
-		var otherTopVols []NewVolume
-		var vids []string
 		for vid := range connector.Vols {
-			if vid != connector.GetVolId(vol) {
-				otherTopVols = append(otherTopVols, connector.Vols[vid])
-				vids = append(vids, vid)
-			}
-		}
-		for i := range otherTopVols {
-			vid := vids[i]
-			cvol := otherTopVols[i]
-			cvolS, _ := fs.Stat(cvol, "")
-			cwdItem, err3 := CreateFileInfo(vid, cvol, fmt.Sprintf("/%s", vol.Name()), cvolS)
-			if err3 != nil {
-				log.Print(err3)
-				if jsonErr := SendJson(rw, NewErr(err2)); jsonErr != nil {
-					log.Print(jsonErr)
+			if connector.Vols[vid].Name() != vol.Name() {
+				vItem, err3 := StatFsVolFileByPath(vid, connector.Vols[vid], fmt.Sprintf("/%s", vol.Name()))
+				if err3 != nil {
+					connector.Logger.Error(err3)
+					data := ElfinderErr{Errs: []string{errOpen, err3.Error()}}
+					if jsonErr := SendJson(rw, &data); jsonErr != nil {
+						connector.Logger.Error(jsonErr)
+					}
+					return
 				}
-				return
+				res.Files = append(res.Files, vItem)
+
 			}
-			res.Files = append(res.Files, cwdItem)
 		}
 	}
-	if path == "" {
+	if param.Init {
+		res.Api = APIVERSION
 		opt := NewDefaultOption()
 		opt.Path = res.Cwd.Name
 		res.Options = opt
 		res.Cwd.Options = &opt
 	}
 	if err := SendJson(rw, &res); err != nil {
-		log.Print(err)
+		connector.Logger.Error(err)
 	}
 }

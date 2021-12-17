@@ -20,10 +20,10 @@ func main() {
 }
 
 var (
-	_ elfinder.NewVolume = (*LocalV)(nil)
+	_ elfinder.FsVolume = (*LocalV)(nil)
 )
 
-func NewLocalV() elfinder.NewVolume {
+func NewLocalV() elfinder.FsVolume {
 	dir, _ := os.Getwd()
 	info, err := os.Stat(dir)
 	if err != nil {

@@ -40,6 +40,16 @@ func ReadWritePem(pem os.FileMode) (readable, writable byte) {
 	return
 }
 
+func ParseFileMode(mode os.FileMode) (r, w int) {
+	if mode&(1<<uint(9-1-0)) != 0 {
+		r = 1
+	}
+	if mode&(1<<uint(9-1-1)) != 0 {
+		w = 1
+	}
+	return
+}
+
 func MD5ID(name string) string {
 	hashInstance := md5.New()
 	hashInstance.Write([]byte(name))

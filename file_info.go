@@ -1,7 +1,5 @@
 package elfinder
 
-import "os"
-
 type FileInfo struct {
 	Name       string  `json:"name"`
 	PathHash   string  `json:"hash"`
@@ -22,10 +20,6 @@ type FileInfo struct {
 	Volumeid   string  `json:"volumeid"` // Volume id. For directory only.
 	Options    *Option `json:"options,omitempty"`
 	Isroot     int     `json:"isroot"`
-}
-
-func NewFileInfo(vid string, vol NewVolume, info os.FileInfo) {
-
 }
 
 /*

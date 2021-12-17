@@ -18,7 +18,7 @@ func TreeCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		log.Print(err)
 		return
 	}
-	id, path, err := connector.GetVolByTarget(param.Target)
+	id, path, err := connector.parseTarget(param.Target)
 	if err != nil {
 		log.Print(err)
 		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
@@ -29,7 +29,7 @@ func TreeCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	fmt.Println(id, path)
 	vol := connector.Vols[id]
 	var res ParentsResponse
-	cwdinfo, err := ReadFilesByPath(id, vol, path)
+	cwdinfo, err := ReadFsVolDir(id, vol, path)
 	if err != nil {
 		log.Panicln(err)
 		return

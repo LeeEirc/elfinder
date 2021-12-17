@@ -30,7 +30,7 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		return
 	}
 	target := param.Target
-	id, path, err := connector.GetVolByTarget(target)
+	id, path, err := connector.parseTarget(target)
 	if err != nil {
 		log.Print(err)
 		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
@@ -39,7 +39,7 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		return
 	}
 	vol := connector.Vols[id]
-	cwdinfo, err := CreateFileInfoByPath(id, vol, path)
+	cwdinfo, err := StatFsVolFileByPath(id, vol, path)
 	if err != nil {
 		log.Panicln(err)
 		return
@@ -47,14 +47,14 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 	res.Tree = append(res.Tree, cwdinfo)
 	for path != "/" {
 		path = filepath.Dir(path)
-		cwdinfo, err = CreateFileInfoByPath(id, vol, path)
+		cwdinfo, err = StatFsVolFileByPath(id, vol, path)
 		if err != nil {
 			log.Panicln(err)
 			return
 		}
 		res.Tree = append(res.Tree, cwdinfo)
 
-		cwdDirs, err := ReadFilesByPath(id, vol, path)
+		cwdDirs, err := ReadFsVolDir(id, vol, path)
 		if err != nil {
 			log.Panicln(err)
 			return
