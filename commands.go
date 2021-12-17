@@ -49,31 +49,26 @@ type NewVolume interface {
 	fs.FS
 }
 
-func parseTarget(target string) (id, path string, err error) {
+func DecodeTarget(target string) (id, path string, err error) {
 	ret := strings.SplitN(target, "_", 2)
-	if len(ret) == 2 {
-		id = ret[0]
-		hpath := ret[1]
-		path, err = DecodePath(hpath)
-		return id, path, err
+	if len(ret) != 2 {
+		return "", "", ErrValidTarget
 	}
-	return "", "", ErrValidTarget
+	path, err = base64Decode(ret[1])
+	return ret[0], path, err
 }
 
-func hashPath(id, path string) string {
-	return id + "_" + EncodePath(strings.TrimPrefix(path, Separator))
+func EncodeTarget(id, path string) string {
+	return strings.Join([]string{id, base64Encode(path)}, "_")
 }
 
-func EncodePath(path string) string {
+func base64Encode(path string) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(path))
 }
 
-func DecodePath(hashPath string) (string, error) {
+func base64Decode(hashPath string) (string, error) {
 	path, err := base64.RawURLEncoding.DecodeString(hashPath)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("/%s", string(path)), nil
+	return string(path), err
 }
 
 var (
@@ -112,9 +107,9 @@ func CreateFileInfo(id string, vol NewVolume, path string, fsInfo fs.FileInfo) (
 		isRoot     int
 	)
 	parentPath := filepath.Dir(path)
-	pathHash = hashPath(id, path)
+	pathHash = EncodeTarget(id, path)
 	if path != "" && path != "/" {
-		parentHash = hashPath(id, parentPath)
+		parentHash = EncodeTarget(id, parentPath)
 	} else {
 		isRoot = 1
 	}
@@ -149,9 +144,9 @@ func CreateFileInfo(id string, vol NewVolume, path string, fsInfo fs.FileInfo) (
 }
 
 func CreateFileInfoByPath(id string, vol NewVolume, path string) (FileInfo, error) {
-	pathHash := hashPath(id, path)
+	pathHash := EncodeTarget(id, path)
 	parentPath := filepath.Dir(path)
-	parentPathHash := hashPath(id, parentPath)
+	parentPathHash := EncodeTarget(id, parentPath)
 	isRoot := 0
 	volRootPath := fmt.Sprintf("/%s", vol.Name())
 	if path == volRootPath {

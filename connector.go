@@ -71,7 +71,12 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	cmd, err := parseCommand(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		var data = ElfinderErr{
+			Errs: []string{errCmdParams, err.Error()},
+		}
+		if err := SendJson(w, data); err != nil {
+			log.Println(err)
+		}
 		return
 	}
 	fmt.Println(r.URL.Query())
@@ -89,11 +94,11 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Connector) GetVolByTarget(target string) (string, string, error) {
-	id, path, err := parseTarget(target)
+	vid, vPath, err := DecodeTarget(target)
 	if err != nil {
 		return "", "", err
 	}
-	return id, path, err
+	return vid, vPath, err
 }
 
 type Options func(*option)
