@@ -2,7 +2,6 @@ package elfinder
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -56,8 +55,8 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	}
 	if vol == nil {
 		connector.Logger.Errorf("not found vol by id: %s", id)
-		if jsonErr := SendJson(rw, NewErr(ErrNoFoundVol)); jsonErr != nil {
-			log.Print(jsonErr)
+		if err = SendJson(rw, NewErr(ErrNoFoundVol)); err != nil {
+			connector.Logger.Errorf("send response json err: %s", err)
 		}
 		return
 	}

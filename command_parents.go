@@ -39,24 +39,24 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		return
 	}
 	vol := connector.Vols[id]
-	cwdinfo, err := StatFsVolFileByPath(id, vol, path)
+	cwdInfo, err := StatFsVolFileByPath(id, vol, path)
 	if err != nil {
 		log.Panicln(err)
 		return
 	}
-	res.Tree = append(res.Tree, cwdinfo)
+	res.Tree = append(res.Tree, cwdInfo)
 	for path != "/" {
 		path = filepath.Dir(path)
-		cwdinfo, err = StatFsVolFileByPath(id, vol, path)
+		cwdInfo, err = StatFsVolFileByPath(id, vol, path)
 		if err != nil {
 			log.Panicln(err)
 			return
 		}
-		res.Tree = append(res.Tree, cwdinfo)
+		res.Tree = append(res.Tree, cwdInfo)
 
 		cwdDirs, err := ReadFsVolDir(id, vol, path)
 		if err != nil {
-			log.Panicln(err)
+			connector.Logger.Error(err)
 			return
 		}
 		res.Tree = append(res.Tree, cwdDirs...)

@@ -18,6 +18,8 @@ const (
 	cmdInfo    = "info"
 	cmdParents = "parents"
 	cmdTree    = "tree"
+	cmdLs      = "ls"
+	cmdUpload  = "upload"
 )
 
 var (
@@ -38,6 +40,8 @@ var (
 		cmdOpen:    OpenCommand,
 		cmdParents: ParentsCommand,
 		cmdTree:    TreeCommand,
+		cmdLs:      LsCommand,
+		cmdUpload:  UploadCommand,
 
 		cmdInfo: InfoCommand,
 	}
