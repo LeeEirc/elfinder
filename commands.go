@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"path/filepath"
@@ -47,9 +48,15 @@ var (
 	}
 )
 
+/*
+	Create 接口的 path 是相对路径格式
+
+*/
+
 type FsVolume interface {
 	Name() string
 	fs.FS
+	Create(path string) (io.ReadWriteCloser, error)
 }
 
 func DecodeTarget(target string) (id, path string, err error) {
@@ -113,7 +120,7 @@ func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error)
 		isRoot = 1
 		parentPathHash = ""
 	}
-	relativePath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), "/")
+	relativePath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), Separator)
 
 	var name string
 	if relativePath == "" {
@@ -171,7 +178,6 @@ func ReadFsVolDir(id string, vol FsVolume, path string) ([]FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	var res []FileInfo
 
 	for i := range files {

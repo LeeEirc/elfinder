@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -43,4 +44,8 @@ type LocalV struct {
 
 func (l LocalV) Name() string {
 	return l.name
+}
+
+func (l LocalV) Create(path string) (io.ReadWriteCloser, error) {
+	return nil, fmt.Errorf("no support %s", l.name)
 }

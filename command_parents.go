@@ -1,7 +1,6 @@
 package elfinder
 
 import (
-	"log"
 	"net/http"
 	"path/filepath"
 )
@@ -23,25 +22,26 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 
 	err := UnmarshalElfinderTag(&param, req.URL.Query())
 	if err != nil {
+		connector.Logger.Error(err)
 		errRes.Errs = []string{errCmdParams, err.Error()}
 		if jsonErr := SendJson(rw, &errRes); jsonErr != nil {
-			log.Print(jsonErr)
+			connector.Logger.Error(jsonErr)
 		}
 		return
 	}
 	target := param.Target
 	id, path, err := connector.parseTarget(target)
 	if err != nil {
-		log.Print(err)
+		connector.Logger.Error(err)
 		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
-			log.Print(jsonErr)
+			connector.Logger.Error(jsonErr)
 		}
 		return
 	}
 	vol := connector.Vols[id]
 	cwdInfo, err := StatFsVolFileByPath(id, vol, path)
 	if err != nil {
-		log.Panicln(err)
+		connector.Logger.Error(err)
 		return
 	}
 	res.Tree = append(res.Tree, cwdInfo)
@@ -49,7 +49,7 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		path = filepath.Dir(path)
 		cwdInfo, err = StatFsVolFileByPath(id, vol, path)
 		if err != nil {
-			log.Panicln(err)
+			connector.Logger.Error(err)
 			return
 		}
 		res.Tree = append(res.Tree, cwdInfo)
@@ -63,7 +63,7 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 	}
 
 	if err := SendJson(rw, &res); err != nil {
-		log.Print(err)
+		connector.Logger.Error(err)
 	}
 
 }
