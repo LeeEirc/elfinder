@@ -15,16 +15,14 @@ type ParentsRequest struct {
 
 func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
 	var (
-		param  ParentsRequest
-		res    ParentsResponse
-		errRes ElfinderErr
+		param ParentsRequest
+		res   ParentsResponse
 	)
 
 	err := UnmarshalElfinderTag(&param, req.URL.Query())
 	if err != nil {
 		connector.Logger.Error(err)
-		errRes.Errs = []string{errCmdParams, err.Error()}
-		if jsonErr := SendJson(rw, &errRes); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -33,7 +31,7 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 	id, path, err := connector.parseTarget(target)
 	if err != nil {
 		connector.Logger.Error(err)
-		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return

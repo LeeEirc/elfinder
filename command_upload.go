@@ -26,7 +26,7 @@ type UploadRequest struct {
 
 type UploadResponse struct {
 	Adds     []FileInfo    `json:"added"`
-	Warnings []ElfinderErr `json:"warning"`
+	Warnings []ErrResponse `json:"warning"`
 
 	ChunkMerged string `json:"_chunkmerged"`
 	ChunkName   string `json:"_name"`
@@ -55,7 +55,7 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 		id, path, err = connector.parseTarget(lsReq.Target)
 		if err != nil {
 			connector.Logger.Errorf("parse target %s err: %s", lsReq.Target, err)
-			if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+			if jsonErr := SendJson(rw, NewErr(ERRCmdParams, err)); jsonErr != nil {
 				connector.Logger.Errorf("send response json err: %s", err)
 			}
 			return
@@ -64,7 +64,7 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 	}
 	if vol == nil {
 		connector.Logger.Errorf("not found vol by id: %s", id)
-		if jsonErr := SendJson(rw, NewErr(ErrNoFoundVol)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(ERRCmdParams, ErrNoFoundVol)); jsonErr != nil {
 			connector.Logger.Errorf("send response json err: %s", err)
 		}
 		return

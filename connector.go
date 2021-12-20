@@ -55,7 +55,7 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	formParseFunc, ok := supportedMethods[r.Method]
 	if !ok {
 		c.Logger.Errorf("not support http method %s", r.Method)
-		var data = ElfinderErr{
+		var data = ErrResponse{
 			Errs: []string{errConnect, r.Method},
 		}
 		if err := SendJson(w, data); err != nil {
@@ -65,7 +65,7 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := formParseFunc(r); err != nil {
 		c.Logger.Errorf("HTTP form parse err: %s", err)
-		var data = ElfinderErr{
+		var data = ErrResponse{
 			Errs: []string{errCmdParams, err.Error()},
 		}
 		if err := SendJson(w, data); err != nil {
@@ -76,7 +76,7 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cmd, err := parseCommand(r)
 	if err != nil {
 		c.Logger.Errorf("Parse command err: %s %+v", err, r.URL.Query())
-		var data = ElfinderErr{
+		var data = ErrResponse{
 			Errs: []string{errCmdParams, err.Error()},
 		}
 		if err := SendJson(w, data); err != nil {
@@ -87,7 +87,7 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handleFunc, ok := supportedCommands[cmd]
 	if !ok {
 		c.Logger.Errorf("Command `%s` not supported", cmd)
-		var data = ElfinderErr{
+		var data = ErrResponse{
 			Errs: []string{errCmdNoSupport, cmd},
 		}
 		if err := SendJson(w, data); err != nil {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net/http"
 	"path/filepath"
@@ -43,21 +42,8 @@ var (
 		cmdTree:    TreeCommand,
 		cmdLs:      LsCommand,
 		cmdUpload:  UploadCommand,
-
-		cmdInfo: InfoCommand,
 	}
 )
-
-/*
-	Create 接口的 path 是相对路径格式
-
-*/
-
-type FsVolume interface {
-	Name() string
-	fs.FS
-	Create(path string) (io.ReadWriteCloser, error)
-}
 
 func DecodeTarget(target string) (id, path string, err error) {
 	ret := strings.SplitN(target, "_", 2)
@@ -192,19 +178,25 @@ func ReadFsVolDir(id string, vol FsVolume, path string) ([]FileInfo, error) {
 	return res, nil
 }
 
-type ErrResponse map[string]interface{}
-
-func NewErr(errs ...error) ErrResponse {
-	errResp := make(ErrResponse)
-	switch len(errs) {
-	case 1:
-		errResp["err"] = errs[0]
-	default:
-		errResp["err"] = errs
-	}
-	return errResp
+func NewErr(errType ErrType, errs ...error) (respErr ErrResponse) {
+	respErr.Type = errType
+	respErr.Errs = errs
+	return
 }
 
-type ElfinderErr struct {
-	Errs interface{} `json:"error"`
+type ErrResponse struct {
+	Type ErrType
+	Errs []error
+}
+
+func (e ErrResponse) MarshalJSON() ([]byte, error) {
+	errs := make([]string, 0, len(e.Errs)+1)
+	errs = append(errs, string(e.Type))
+	for i := range e.Errs {
+		errs = append(errs, e.Errs[i].Error())
+	}
+	data := map[string]interface{}{
+		"error": errs,
+	}
+	return json.Marshal(data)
 }

@@ -46,7 +46,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		id, path, err = connector.parseTarget(param.Target)
 		if err != nil {
 			connector.Logger.Errorf("parse target %s err: %s", param.Target, err)
-			if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+			if jsonErr := SendJson(rw, NewErr(ERROpen, err)); jsonErr != nil {
 				connector.Logger.Errorf("send response json err: %s", err)
 			}
 			return
@@ -55,7 +55,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	}
 	if vol == nil {
 		connector.Logger.Errorf("not found vol by id: %s", id)
-		if err = SendJson(rw, NewErr(ErrNoFoundVol)); err != nil {
+		if err = SendJson(rw, NewErr(ERROpen, ErrNoFoundVol)); err != nil {
 			connector.Logger.Errorf("send response json err: %s", err)
 		}
 		return
@@ -63,7 +63,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 
 	cwd, err2 := StatFsVolFileByPath(id, vol, path)
 	if err2 != nil {
-		if jsonErr := SendJson(rw, NewErr(err2)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(ERROpen, err2)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -71,7 +71,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	res.Cwd = cwd
 	resFiles, err := ReadFsVolDir(id, vol, path)
 	if err != nil {
-		if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(ERROpen, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -85,8 +85,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 				vItem, err3 := StatFsVolFileByPath(vid, connector.Vols[vid], fmt.Sprintf("/%s", vol.Name()))
 				if err3 != nil {
 					connector.Logger.Error(err3)
-					data := ElfinderErr{Errs: []string{errOpen, err3.Error()}}
-					if jsonErr := SendJson(rw, &data); jsonErr != nil {
+					if jsonErr := SendJson(rw, NewErr(ERROpen, err3)); jsonErr != nil {
 						connector.Logger.Error(jsonErr)
 					}
 					return
