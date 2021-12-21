@@ -49,3 +49,19 @@ func (l LocalV) Name() string {
 func (l LocalV) Create(path string) (io.ReadWriteCloser, error) {
 	return nil, fmt.Errorf("no support %s", l.name)
 }
+
+func (l LocalV) Mkdir(path string) error {
+	return nil
+}
+
+func (l LocalV) Remove(path string) error {
+	return nil
+}
+
+func (l LocalV) Rename(old, new string) error {
+	return nil
+}
+
+func (l LocalV) ReadDir(path string) ([]fs.DirEntry, error) {
+	return nil, nil
+}
