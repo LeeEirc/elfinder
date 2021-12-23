@@ -20,6 +20,7 @@ const (
 	cmdTree    = "tree"
 	cmdLs      = "ls"
 	cmdUpload  = "upload"
+	cmdRm      = "rm"
 )
 
 var (
@@ -42,6 +43,7 @@ var (
 		cmdTree:    TreeCommand,
 		cmdLs:      LsCommand,
 		cmdUpload:  UploadCommand,
+		cmdRm:      RmCommand,
 	}
 )
 
@@ -106,7 +108,9 @@ func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error)
 		isRoot = 1
 		parentPathHash = ""
 	}
+
 	relativePath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), Separator)
+	fmt.Println("path: stat ", path, " relativeL: ", relativePath)
 
 	var name string
 	if relativePath == "" {

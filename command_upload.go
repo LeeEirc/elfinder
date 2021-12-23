@@ -2,7 +2,9 @@ package elfinder
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 )
 
 const defaultSuffix = "_elfinder_"
@@ -35,7 +37,7 @@ type UploadResponse struct {
 func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
 	var (
 		lsReq UploadRequest
-		//res   UploadResponse
+		res   UploadResponse
 	)
 	if err := UnmarshalElfinderTag(&lsReq, req.MultipartForm.Value); err != nil {
 		connector.Logger.Error(err)
@@ -73,16 +75,32 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 	uploadFiles := req.MultipartForm.File["upload[]"]
 	fmt.Printf("upload: %+v\n", lsReq)
 	fmt.Printf("path: %+v\n", path)
-	var errs []error
+	var errs []ErrResponse
 	if lsReq.Chunk == "" {
 		for i := range uploadFiles {
 			cwdFile := uploadFiles[i]
 			fmt.Println(cwdFile.Filename, cwdFile.Size, cwdFile.Header)
 			cwdFd, err := cwdFile.Open()
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, NewErr(ERRUpload, err))
+				continue
+			}
+			currentPath := strings.Join([]string{path, cwdFile.Filename}, Separator)
+			relativePath := strings.TrimPrefix(currentPath, fmt.Sprintf("/%s/", vol.Name()))
+			if writer, err2 := vol.Create(relativePath); err2 == nil {
+				_, err3 := io.Copy(writer, cwdFd)
+				if err3 != nil {
+					connector.Logger.Errorf("upload file %s err:", cwdFile.Filename, err3)
+				} else {
+					if info, err := StatFsVolFileByPath(id, vol, currentPath); err == nil {
+						res.Adds = append(res.Adds, info)
+					}
+				}
 			}
 			_ = cwdFd.Close()
+		}
+		if len(errs) > 0 {
+			res.Warnings = errs
 		}
 	}
 }

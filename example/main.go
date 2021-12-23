@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/LeeEirc/elfinder"
 )
@@ -32,13 +33,15 @@ func NewLocalV() elfinder.FsVolume {
 	}
 	lfs := os.DirFS(dir)
 	return LocalV{
-		name: info.Name(),
-		FS:   lfs,
+		rootPath: dir,
+		name:     info.Name(),
+		FS:       lfs,
 	}
 }
 
 type LocalV struct {
-	name string
+	rootPath string
+	name     string
 	fs.FS
 }
 
@@ -47,21 +50,30 @@ func (l LocalV) Name() string {
 }
 
 func (l LocalV) Create(path string) (io.ReadWriteCloser, error) {
-	return nil, fmt.Errorf("no support %s", l.name)
+	absPath := l.getAbsPath(path)
+	return os.Create(absPath)
 }
 
 func (l LocalV) Mkdir(path string) error {
-	return nil
+	absPath := l.getAbsPath(path)
+	return os.Mkdir(absPath, os.ModePerm)
 }
 
 func (l LocalV) Remove(path string) error {
-	return nil
+	absPath := l.getAbsPath(path)
+	return os.Remove(absPath)
 }
 
 func (l LocalV) Rename(old, new string) error {
-	return nil
+	oldAbsPath := l.getAbsPath(old)
+	newAbsPath := l.getAbsPath(new)
+	return os.Rename(oldAbsPath, newAbsPath)
 }
 
 func (l LocalV) ReadDir(path string) ([]fs.DirEntry, error) {
-	return nil, nil
+	absPath := l.getAbsPath(path)
+	return os.ReadDir(absPath)
+}
+func (l LocalV) getAbsPath(path string) string {
+	return filepath.Join(l.rootPath, path)
 }

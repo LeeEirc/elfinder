@@ -43,8 +43,11 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		return
 	}
 	res.Tree = append(res.Tree, cwdInfo)
-	for path != "/" {
+	for {
 		path = filepath.Dir(path)
+		if path == "/" {
+			break
+		}
 		cwdInfo, err = StatFsVolFileByPath(id, vol, path)
 		if err != nil {
 			connector.Logger.Error(err)
