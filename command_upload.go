@@ -74,12 +74,11 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 
 	uploadFiles := req.MultipartForm.File["upload[]"]
 	fmt.Printf("upload: %+v\n", lsReq)
-	fmt.Printf("path: %+v\n", path)
+	fmt.Printf("uploadFiles len: %d\n", len(uploadFiles))
 	var errs []ErrResponse
 	if lsReq.Chunk == "" {
 		for i := range uploadFiles {
 			cwdFile := uploadFiles[i]
-			fmt.Println(cwdFile.Filename, cwdFile.Size, cwdFile.Header)
 			cwdFd, err := cwdFile.Open()
 			if err != nil {
 				errs = append(errs, NewErr(ERRUpload, err))
@@ -96,11 +95,17 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 						res.Adds = append(res.Adds, info)
 					}
 				}
+				_ = writer.Close()
 			}
 			_ = cwdFd.Close()
 		}
 		if len(errs) > 0 {
 			res.Warnings = errs
 		}
+	}else {
+
+	}
+	if err := SendJson(rw, res); err != nil {
+		connector.Logger.Errorf("send response json err: %s", err)
 	}
 }
