@@ -28,8 +28,11 @@ func main() {
 	mux := http.NewServeMux()
 	localFs := NewLocalV(dir)
 	connector := elfinder.NewConnector(elfinder.WithVolumes(localFs))
-	fileSystem := http.FS(staticFs)
-	staticHandler := http.StripPrefix("", http.FileServer(fileSystem))
+	fileSystem, err := fs.Sub(staticFs, "elf")
+	if err != nil {
+		log.Fatal(err)
+	}
+	staticHandler := http.StripPrefix("", http.FileServer(http.FS(fileSystem)))
 	mux.Handle("/", staticHandler)
 	mux.Handle("/connector", connector)
 	fmt.Println("Listen on :8000")
@@ -41,6 +44,7 @@ var (
 )
 
 func NewLocalV(path string) elfinder.FsVolume {
+	path = GetAbsPath(path)
 	info, err := os.Stat(path)
 	if err != nil {
 		log.Fatal(err)
@@ -51,6 +55,15 @@ func NewLocalV(path string) elfinder.FsVolume {
 		name:     info.Name(),
 		FS:       lfs,
 	}
+}
+
+func GetAbsPath(path string) string {
+	if !filepath.IsAbs(path) {
+		if pwd, err := os.Getwd(); err == nil {
+			path = filepath.Join(pwd, path)
+		}
+	}
+	return path
 }
 
 type LocalV struct {
