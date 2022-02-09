@@ -1,21 +1,34 @@
 package main
 
 import (
+	"embed"
+	"flag"
 	"fmt"
+	"github.com/LeeEirc/elfinder"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-
-	"github.com/LeeEirc/elfinder"
 )
+
+//go:embed elf
+var f embed.FS
+
+var dir string
+
+func init()  {
+	flag.StringVar(&dir, "dir", "./", "The dir you want to proxy")
+	flag.Parse()
+}
 
 func main() {
 	mux := http.NewServeMux()
 	connector := elfinder.NewConnector(elfinder.WithVolumes(NewLocalV()))
-	mux.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./elf/"))))
+	fileSystem := http.FS(f)
+	staticHandler := http.StripPrefix("", http.FileServer(fileSystem))
+	mux.Handle("/", staticHandler)
 	mux.Handle("/connector", connector)
 	fmt.Println("Listen on :8000")
 	log.Fatal(http.ListenAndServe(":8000", mux))
@@ -26,7 +39,6 @@ var (
 )
 
 func NewLocalV() elfinder.FsVolume {
-	dir, _ := os.Getwd()
 	info, err := os.Stat(dir)
 	if err != nil {
 		log.Fatal(err)
