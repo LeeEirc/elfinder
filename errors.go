@@ -2,6 +2,10 @@ package elfinder
 
 type ErrType string
 
+func (e ErrType) String() string {
+	return string(e)
+}
+
 const (
 	ERRMsg        ErrType = "error"
 	ERRUnknownMsg ErrType = "errUnknown"
