@@ -73,8 +73,6 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 	}
 
 	uploadFiles := req.MultipartForm.File["upload[]"]
-	fmt.Printf("upload: %+v\n", lsReq)
-	fmt.Printf("uploadFiles len: %d\n", len(uploadFiles))
 	var errs []ErrResponse
 	if lsReq.Chunk == "" {
 		for i := range uploadFiles {
@@ -102,7 +100,7 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 		if len(errs) > 0 {
 			res.Warnings = errs
 		}
-	}else {
+	} else {
 
 	}
 	if err := SendJson(rw, res); err != nil {
