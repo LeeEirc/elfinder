@@ -30,7 +30,7 @@ func RmCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 	}
 	for i := range cmdReq.Targets {
 		target := cmdReq.Targets[i]
-		id, path, err := connector.parseTarget(target)
+		id, path, err := connector.ParseTarget(target)
 		if err != nil {
 			connector.Logger.Error(err)
 			if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {

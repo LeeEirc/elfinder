@@ -88,7 +88,7 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handleFunc(c, r, w)
 }
 
-func (c *Connector) parseTarget(target string) (vid, vPath string, err error) {
+func (c *Connector) ParseTarget(target string) (vid, vPath string, err error) {
 	return DecodeTarget(target)
 }
 

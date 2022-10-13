@@ -1,8 +1,10 @@
-package elfinder
+package command
 
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/LeeEirc/elfinder"
 )
 
 type LsRequest struct {
@@ -14,13 +16,13 @@ type LsResponse struct {
 	List map[string]string `json:"list"`
 }
 
-func LsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
+func LsCommand(connector *elfinder.Connector, req *http.Request, rw http.ResponseWriter) {
 	var (
 		lsReq LsRequest
 		res   LsResponse
 	)
 
-	if err := UnmarshalElfinderTag(&lsReq, req.URL.Query()); err != nil {
+	if err := elfinder.UnmarshalElfinderTag(&lsReq, req.URL.Query()); err != nil {
 		connector.Logger.Error(err)
 		return
 	}
@@ -28,17 +30,17 @@ func LsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 		id   string
 		path string
 		err  error
-		vol  FsVolume
+		vol  elfinder.FsVolume
 	)
 	vol = connector.DefaultVol
 	id = connector.GetVolId(connector.DefaultVol)
 	path = fmt.Sprintf("/%s", vol.Name())
 
 	if lsReq.Target != "" {
-		id, path, err = connector.parseTarget(lsReq.Target)
+		id, path, err = connector.ParseTarget(lsReq.Target)
 		if err != nil {
 			connector.Logger.Errorf("parse target %s err: %s", lsReq.Target, err)
-			if jsonErr := SendJson(rw, NewErr(ERRCmdParams, err)); jsonErr != nil {
+			if jsonErr := elfinder.SendJson(rw, elfinder.NewErr(elfinder.ERRCmdParams, err)); jsonErr != nil {
 				connector.Logger.Errorf("send response json err: %s", err)
 			}
 			return
@@ -47,15 +49,15 @@ func LsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 	}
 	if vol == nil {
 		connector.Logger.Errorf("not found vol by id: %s", id)
-		if jsonErr := SendJson(rw, NewErr(ERRCmdParams, ErrNoFoundVol)); jsonErr != nil {
+		if jsonErr := elfinder.SendJson(rw, elfinder.NewErr(elfinder.ERRCmdParams, elfinder.ErrNoFoundVol)); jsonErr != nil {
 			connector.Logger.Errorf("send response json err: %s", err)
 		}
 		return
 	}
 
-	resFiles, err := ReadFsVolDir(id, vol, path)
+	resFiles, err := elfinder.ReadFsVolDir(id, vol, path)
 	if err != nil {
-		if jsonErr := SendJson(rw, NewErr(ERROpen, err)); jsonErr != nil {
+		if jsonErr := elfinder.SendJson(rw, elfinder.NewErr(elfinder.ERROpen, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -74,7 +76,7 @@ func LsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 		}
 	}
 
-	if err = SendJson(rw, res); err != nil {
+	if err = elfinder.SendJson(rw, res); err != nil {
 		connector.Logger.Errorf("send response json err: %s", err)
 	}
 }

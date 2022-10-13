@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/LeeEirc/elfinder/command"
 	"io/fs"
 	"net/http"
 	"path/filepath"
@@ -41,7 +42,7 @@ var (
 		cmdOpen:    OpenCommand,
 		cmdParents: ParentsCommand,
 		cmdTree:    TreeCommand,
-		cmdLs:      LsCommand,
+		cmdLs:      command.LsCommand,
 		cmdUpload:  UploadCommand,
 		cmdRm:      RmCommand,
 	}

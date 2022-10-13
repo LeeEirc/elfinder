@@ -43,7 +43,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	id = connector.GetVolId(connector.DefaultVol)
 	path = fmt.Sprintf("/%s", vol.Name())
 	if param.Target != "" {
-		id, path, err = connector.parseTarget(param.Target)
+		id, path, err = connector.ParseTarget(param.Target)
 		if err != nil {
 			connector.Logger.Errorf("parse target %s err: %s", param.Target, err)
 			if jsonErr := SendJson(rw, NewErr(ERROpen, err)); jsonErr != nil {

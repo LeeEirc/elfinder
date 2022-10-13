@@ -1,7 +1,9 @@
-package elfinder
+package command
+
+import "github.com/LeeEirc/elfinder"
 
 type InfoResponse struct {
-	Files []FileInfo `json:"files"`
+	Files []elfinder.FileInfo `json:"files"`
 }
 
 //func InfoCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
@@ -58,7 +60,6 @@ type InfoResponse struct {
 //	return
 //
 //}
-
 
 //func CreateFileInfo(id string, vol FsVolume, path string, fsInfo fs.FileInfo) (FileInfo, error) {
 //	var (

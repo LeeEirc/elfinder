@@ -54,7 +54,7 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 	path = fmt.Sprintf("/%s", vol.Name())
 
 	if lsReq.Target != "" {
-		id, path, err = connector.parseTarget(lsReq.Target)
+		id, path, err = connector.ParseTarget(lsReq.Target)
 		if err != nil {
 			connector.Logger.Errorf("parse target %s err: %s", lsReq.Target, err)
 			if jsonErr := SendJson(rw, NewErr(ERRCmdParams, err)); jsonErr != nil {

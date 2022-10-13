@@ -28,7 +28,7 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		return
 	}
 	target := param.Target
-	id, path, err := connector.parseTarget(target)
+	id, path, err := connector.ParseTarget(target)
 	if err != nil {
 		connector.Logger.Error(err)
 		if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {

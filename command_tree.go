@@ -18,7 +18,7 @@ func TreeCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		log.Print(err)
 		return
 	}
-	id, path, err := connector.parseTarget(param.Target)
+	id, path, err := connector.ParseTarget(param.Target)
 	if err != nil {
 		log.Print(err)
 		if jsonErr := SendJson(rw, NewErr(ERRCmdParams, err)); jsonErr != nil {
