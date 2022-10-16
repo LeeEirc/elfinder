@@ -1,6 +1,7 @@
 package elfinder
 
 import (
+	"github.com/LeeEirc/elfinder/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,7 +11,7 @@ import (
 
 var rootPath, _ = os.Getwd()
 
-var DefaultVolume = LocalFileVolume{basePath: rootPath, Id: GenerateID(rootPath)}
+var DefaultVolume = LocalFileVolume{basePath: rootPath, Id: utils.GenerateID(rootPath)}
 
 type Volume interface {
 	ID() string
@@ -33,7 +34,7 @@ type Volume interface {
 func NewLocalVolume(path string) *LocalFileVolume {
 	return &LocalFileVolume{
 		basePath: path,
-		Id:       GenerateID(path),
+		Id:       utils.GenerateID(path),
 	}
 }
 
@@ -65,7 +66,7 @@ func (f *LocalFileVolume) Info(path string) (FileDir, error) {
 	resFDir.Hash = f.hash(path)
 	resFDir.Ts = pathInfo.ModTime().Unix()
 	resFDir.Size = pathInfo.Size()
-	resFDir.Read, resFDir.Write = ReadWritePem(pathInfo.Mode())
+	resFDir.Read, resFDir.Write = utils.ReadWritePem(pathInfo.Mode())
 
 	if pathInfo.IsDir() {
 		resFDir.Mime = "directory"
@@ -183,7 +184,7 @@ func (f *LocalFileVolume) MergeChunk(cid, total int, dirPath, uploadPath, filena
 }
 
 func (f *LocalFileVolume) hash(path string) string {
-	return CreateHash(f.Id, path)
+	return utils.CreateHash(f.Id, path)
 }
 
 func (f *LocalFileVolume) MakeDir(dir, newDirname string) (FileDir, error) {
@@ -213,7 +214,7 @@ func (f *LocalFileVolume) MakeFile(dir, newFilename string) (FileDir, error) {
 	res.Size = fdInfo.Size()
 	res.Mime = "file"
 	res.Dirs = 0
-	res.Read, res.Write = ReadWritePem(fdInfo.Mode())
+	res.Read, res.Write = utils.ReadWritePem(fdInfo.Mode())
 	return res, nil
 
 }
@@ -260,7 +261,7 @@ func (f *LocalFileVolume) RootFileDir() FileDir {
 	resFDir.Mime = "directory"
 	resFDir.Volumeid = f.Id
 	resFDir.Dirs = 1
-	resFDir.Read, resFDir.Write = ReadWritePem(info.Mode())
+	resFDir.Read, resFDir.Write = utils.ReadWritePem(info.Mode())
 	resFDir.Size = info.Size()
 	resFDir.Locked = 1
 	return resFDir
@@ -280,7 +281,7 @@ func (f *LocalFileVolume) Search(path, key string, mimes ...string) (files []Fil
 				resFDir.Mime = "file"
 				resFDir.Dirs = 0
 			}
-			resFDir.Read, resFDir.Write = ReadWritePem(info.Mode())
+			resFDir.Read, resFDir.Write = utils.ReadWritePem(info.Mode())
 			resFDir.Size = info.Size()
 			resFDir.Ts = info.ModTime().UnixNano()
 			files = append(files, resFDir)

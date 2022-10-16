@@ -1,27 +1,29 @@
-package command
+package connection
 
-import "github.com/LeeEirc/elfinder"
+import (
+	"github.com/LeeEirc/elfinder/model"
+)
 
 type InfoResponse struct {
-	Files []elfinder.FileInfo `json:"files"`
+	Files []model.FileInfo `json:"files"`
 }
 
-//func InfoCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
+//func InfoCommand(connection *Connector, req *http.Request, rw http.ResponseWriter) {
 //	targets := req.Form["targets[]"]
 //	var resp InfoResponse
 //	for _, target := range targets {
-//		id, path, err := connector.parseTarget(target)
-//		if err != nil {
-//			log.Print(err)
-//			if err != nil {
-//				if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+//		id, path, errs := connection.parseTarget(target)
+//		if errs != nil {
+//			log.Print(errs)
+//			if errs != nil {
+//				if jsonErr := SendJson(rw, NewErr(errs)); jsonErr != nil {
 //					log.Print(jsonErr)
 //				}
 //				return
 //			}
 //		}
-//		if vol := connector.Vols[id]; vol != nil {
-//			dirs, err2 := fs.ReadDir(vol, path)
+//		if vol := connection.Vols[id]; vol != nil {
+//			dirs, err2 := volumes.ReadDir(vol, path)
 //			if err2 != nil {
 //				log.Print(err2)
 //				if jsonErr := SendJson(rw, NewErr(err2)); jsonErr != nil {
@@ -31,8 +33,8 @@ type InfoResponse struct {
 //			}
 //
 //			for i := range dirs {
-//				info, err := dirs[i].Info()
-//				if err != nil {
+//				info, errs := dirs[i].Info()
+//				if errs != nil {
 //					log.Print(err2)
 //					if jsonErr := SendJson(rw, NewErr(err2)); jsonErr != nil {
 //						log.Print(jsonErr)
@@ -40,10 +42,10 @@ type InfoResponse struct {
 //					return
 //				}
 //				subpath := filepath.Join(path, info.Name())
-//				cwd, err := CreateFileInfo(id, vol, subpath, info)
-//				if err != nil {
-//					log.Print(err)
-//					if jsonErr := SendJson(rw, NewErr(err)); jsonErr != nil {
+//				cwd, errs := CreateFileInfo(id, vol, subpath, info)
+//				if errs != nil {
+//					log.Print(errs)
+//					if jsonErr := SendJson(rw, NewErr(errs)); jsonErr != nil {
 //						log.Print(jsonErr)
 //					}
 //					return
@@ -61,7 +63,7 @@ type InfoResponse struct {
 //
 //}
 
-//func CreateFileInfo(id string, vol FsVolume, path string, fsInfo fs.FileInfo) (FileInfo, error) {
+//func CreateFileInfo(id string, vol FsVolume, path string, fsInfo volumes.FileInfo) (FileInfo, error) {
 //	var (
 //		pathHash   string
 //		parentHash string
@@ -79,7 +81,7 @@ type InfoResponse struct {
 //	MimeType = "file"
 //	if fsInfo.IsDir() {
 //		MimeType = "directory"
-//		dirItems, err2 := fs.ReadDir(vol, path)
+//		dirItems, err2 := volumes.ReadDir(vol, path)
 //		if err2 != nil {
 //			return FileInfo{}, err2
 //		}

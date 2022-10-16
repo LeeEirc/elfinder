@@ -1,7 +1,11 @@
-package elfinder
+package connection
 
 import (
 	"fmt"
+	"github.com/LeeEirc/elfinder/codecs"
+	"github.com/LeeEirc/elfinder/errs"
+	"github.com/LeeEirc/elfinder/model"
+	"github.com/LeeEirc/elfinder/volumes"
 	"io"
 	"net/http"
 	"strings"
@@ -27,8 +31,8 @@ type UploadRequest struct {
 }
 
 type UploadResponse struct {
-	Adds     []FileInfo    `json:"added"`
-	Warnings []ErrResponse `json:"warning"`
+	Adds     []model.FileInfo `json:"added"`
+	Warnings []ErrResponse    `json:"warning"`
 
 	ChunkMerged string `json:"_chunkmerged"`
 	ChunkName   string `json:"_name"`
@@ -39,7 +43,7 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 		lsReq UploadRequest
 		res   UploadResponse
 	)
-	if err := UnmarshalElfinderTag(&lsReq, req.MultipartForm.Value); err != nil {
+	if err := codecs.UnmarshalElfinderTag(&lsReq, req.MultipartForm.Value); err != nil {
 		connector.Logger.Error(err)
 		return
 	}
@@ -47,7 +51,7 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 		id   string
 		path string
 		err  error
-		vol  FsVolume
+		vol  volumes.FsVolume
 	)
 	vol = connector.DefaultVol
 	id = connector.GetVolId(connector.DefaultVol)
@@ -56,9 +60,9 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 	if lsReq.Target != "" {
 		id, path, err = connector.ParseTarget(lsReq.Target)
 		if err != nil {
-			connector.Logger.Errorf("parse target %s err: %s", lsReq.Target, err)
-			if jsonErr := SendJson(rw, NewErr(ERRCmdParams, err)); jsonErr != nil {
-				connector.Logger.Errorf("send response json err: %s", err)
+			connector.Logger.Errorf("parse target %s errRet: %s", lsReq.Target, err)
+			if jsonErr := SendJson(rw, NewErr(errs.ERRCmdParams, err)); jsonErr != nil {
+				connector.Logger.Errorf("send response json errRet: %s", err)
 			}
 			return
 		}
@@ -66,28 +70,28 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 	}
 	if vol == nil {
 		connector.Logger.Errorf("not found vol by id: %s", id)
-		if jsonErr := SendJson(rw, NewErr(ERRCmdParams, ErrNoFoundVol)); jsonErr != nil {
-			connector.Logger.Errorf("send response json err: %s", err)
+		if jsonErr := SendJson(rw, NewErr(errs.ERRCmdParams, ErrNoFoundVol)); jsonErr != nil {
+			connector.Logger.Errorf("send response json errRet: %s", err)
 		}
 		return
 	}
 
 	uploadFiles := req.MultipartForm.File["upload[]"]
-	var errs []ErrResponse
+	var errRet []ErrResponse
 	if lsReq.Chunk == "" {
 		for i := range uploadFiles {
 			cwdFile := uploadFiles[i]
 			cwdFd, err := cwdFile.Open()
 			if err != nil {
-				errs = append(errs, NewErr(ERRUpload, err))
+				errRet = append(errRet, NewErr(errs.ERRUpload, err))
 				continue
 			}
-			currentPath := strings.Join([]string{path, cwdFile.Filename}, Separator)
+			currentPath := strings.Join([]string{path, cwdFile.Filename}, model.Separator)
 			relativePath := strings.TrimPrefix(currentPath, fmt.Sprintf("/%s/", vol.Name()))
 			if writer, err2 := vol.Create(relativePath); err2 == nil {
 				_, err3 := io.Copy(writer, cwdFd)
 				if err3 != nil {
-					connector.Logger.Errorf("upload file %s err:", cwdFile.Filename, err3)
+					connector.Logger.Errorf("upload file %s errRet:", cwdFile.Filename, err3)
 				} else {
 					if info, err := StatFsVolFileByPath(id, vol, currentPath); err == nil {
 						res.Adds = append(res.Adds, info)
@@ -97,13 +101,13 @@ func UploadCommand(connector *Connector, req *http.Request, rw http.ResponseWrit
 			}
 			_ = cwdFd.Close()
 		}
-		if len(errs) > 0 {
-			res.Warnings = errs
+		if len(errRet) > 0 {
+			res.Warnings = errRet
 		}
 	} else {
 
 	}
 	if err := SendJson(rw, res); err != nil {
-		connector.Logger.Errorf("send response json err: %s", err)
+		connector.Logger.Errorf("send response json errRet: %s", err)
 	}
 }

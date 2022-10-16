@@ -1,15 +1,20 @@
-package elfinder
+package connection
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/LeeEirc/elfinder/command"
 	"io/fs"
 	"net/http"
 	"path/filepath"
 	"strings"
+
+	"github.com/LeeEirc/elfinder"
+	"github.com/LeeEirc/elfinder/errs"
+	"github.com/LeeEirc/elfinder/model"
+	"github.com/LeeEirc/elfinder/utils"
+	"github.com/LeeEirc/elfinder/volumes"
 )
 
 const defaultMaxMemory = 32 << 20
@@ -42,7 +47,7 @@ var (
 		cmdOpen:    OpenCommand,
 		cmdParents: ParentsCommand,
 		cmdTree:    TreeCommand,
-		cmdLs:      command.LsCommand,
+		cmdLs:      LsCommand,
 		cmdUpload:  UploadCommand,
 		cmdRm:      RmCommand,
 	}
@@ -95,11 +100,11 @@ type CommandHandler func(connector *Connector, req *http.Request, rw http.Respon
 type RequestFormParseFunc func(req *http.Request) error
 
 func SendJson(w http.ResponseWriter, data interface{}) error {
-	w.Header().Set(HeaderContentType, MIMEApplicationJavaScriptCharsetUTF8)
+	w.Header().Set(elfinder.HeaderContentType, elfinder.MIMEApplicationJavaScriptCharsetUTF8)
 	return json.NewEncoder(w).Encode(data)
 }
 
-func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error) {
+func StatFsVolFileByPath(id string, vol volumes.FsVolume, path string) (model.FileInfo, error) {
 	pathHash := EncodeTarget(id, path)
 	parentPath := filepath.Dir(path)
 	parentPathHash := EncodeTarget(id, parentPath)
@@ -109,7 +114,7 @@ func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error)
 		isRoot = 1
 		parentPathHash = ""
 	}
-	relativePath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), Separator)
+	relativePath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), model.Separator)
 
 	var name string
 	if relativePath == "" {
@@ -119,7 +124,7 @@ func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error)
 
 	info, err := fs.Stat(vol, relativePath)
 	if err != nil {
-		return FileInfo{}, err
+		return model.FileInfo{}, err
 	}
 	if name == "" {
 		name = info.Name()
@@ -137,11 +142,11 @@ func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error)
 	}
 
 	var locked int
-	r, w := ParseFileMode(info.Mode())
+	r, w := utils.ParseFileMode(info.Mode())
 	if w == 0 {
 		locked = 1
 	}
-	return FileInfo{
+	return model.FileInfo{
 		Name:       name,
 		PathHash:   pathHash,
 		ParentHash: parentPathHash,
@@ -157,7 +162,7 @@ func StatFsVolFileByPath(id string, vol FsVolume, path string) (FileInfo, error)
 	}, nil
 }
 
-func ReadFsVolDir(id string, vol FsVolume, path string) ([]FileInfo, error) {
+func ReadFsVolDir(id string, vol volumes.FsVolume, path string) ([]model.FileInfo, error) {
 	volRootPath := fmt.Sprintf("/%s", vol.Name())
 	dirPath := strings.TrimPrefix(strings.TrimPrefix(path, volRootPath), "/")
 	if dirPath == "" {
@@ -167,10 +172,10 @@ func ReadFsVolDir(id string, vol FsVolume, path string) ([]FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	var res []FileInfo
+	var res []model.FileInfo
 
 	for i := range files {
-		subPath := strings.Join([]string{path, files[i].Name()}, Separator)
+		subPath := strings.Join([]string{path, files[i].Name()}, model.Separator)
 		info, err2 := StatFsVolFileByPath(id, vol, subPath)
 		if err2 != nil {
 			return nil, err2
@@ -181,14 +186,14 @@ func ReadFsVolDir(id string, vol FsVolume, path string) ([]FileInfo, error) {
 	return res, nil
 }
 
-func NewErr(errType ErrType, errs ...error) (respErr ErrResponse) {
+func NewErr(errType errs.ErrType, errs ...error) (respErr ErrResponse) {
 	respErr.Type = errType
 	respErr.Errs = errs
 	return
 }
 
 type ErrResponse struct {
-	Type ErrType
+	Type errs.ErrType
 	Errs []error
 }
 

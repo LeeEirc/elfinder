@@ -1,4 +1,4 @@
-package elfinder
+package volumes
 
 import (
 	"io"

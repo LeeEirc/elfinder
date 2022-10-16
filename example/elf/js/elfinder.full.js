@@ -1408,7 +1408,7 @@ var elFinder = function(elm, opts, bootCallback) {
 	this.customData = Object.assign({}, this.optsCustomData);
 
 	/**
-	 * Previous custom data from connector
+	 * Previous custom data from connection
 	 * 
 	 * @type Object|null
 	 */
@@ -4799,7 +4799,7 @@ var elFinder = function(elm, opts, bootCallback) {
 		if (!node.length) {
 			return alert(self.i18n('errNode'));
 		}
-		// check connector url
+		// check connection url
 		if (!self.options.url) {
 			return alert(self.i18n('errURL'));
 		}
@@ -8507,7 +8507,7 @@ elFinder.prototype = {
 					}
 					res = escFunc? escFunc(input[placeholder]) : self.escape(input[placeholder]);
 					if (isErr) {
-						res = '<span class="elfinder-err-var elfinder-err-var' + placeholder + '">' + res + '</span>';
+						res = '<span class="elfinder-errs-var elfinder-errs-var' + placeholder + '">' + res + '</span>';
 					}
 					return res;
 				});
@@ -10648,7 +10648,7 @@ elFinder.prototype._options = {
 	requestType : 'get',
 	
 	/**
-	 * Use CORS to connector url
+	 * Use CORS to connection url
 	 * 
 	 * @type Boolean|null  true|false|null(Auto detect)
 	 */
@@ -10690,7 +10690,7 @@ elFinder.prototype._options = {
 
 	/**
 	 * URL to upload file to.
-	 * If not set - connector URL will be used
+	 * If not set - connection URL will be used
 	 *
 	 * @type String
 	 * @default  ''
@@ -10907,7 +10907,7 @@ elFinder.prototype._options = {
 			getImgSize : false
 		},
 		open : {
-			// HTTP method that request to the connector when item URL is not valid URL.
+			// HTTP method that request to the connection when item URL is not valid URL.
 			// If you set to "get" will be displayed request parameter in the browser's location field
 			// so if you want to conceal its parameters should be given "post".
 			// Nevertheless, please specify "get" if you want to enable the partial request by HTTP Range header.
@@ -11150,7 +11150,7 @@ elFinder.prototype._options = {
 			// Additional search types
 			searchTypes : {
 				// "SearchMime" is implemented in default
-				SearchMime : {           // The key is search type that send to the connector
+				SearchMime : {           // The key is search type that send to the connection
 					name : 'btnMime',    // Button text to be processed in i18n()
 					title : 'searchMime',// Button title to be processed in i18n()
 					incsearch : 'mime'   // Incremental search target filed name of the file object
@@ -11547,7 +11547,7 @@ elFinder.prototype._options = {
 
 	/**
 	 * MIME regex of send HTTP header "Content-Disposition: inline" or allow preview in quicklook
-	 * This option will overwrite by connector configuration
+	 * This option will overwrite by connection configuration
 	 * 
 	 * @type String
 	 * @default '^(?:(?:image|video|audio)|text/plain|application/pdf$)'
@@ -12155,7 +12155,7 @@ elFinder.prototype.command = function(fm) {
 	this.state = -1;
 	
 	/**
-	 * If true, command can not be disabled by connector.
+	 * If true, command can not be disabled by connection.
 	 * @see this.update()
 	 *
 	 * @type  Boolen
@@ -12170,7 +12170,7 @@ elFinder.prototype.command = function(fm) {
 	this.noChangeDirOnRemovedCwd = false;
 	
 	/**
-	 * If true, this means command was disabled by connector.
+	 * If true, this means command was disabled by connection.
 	 * @see this.update()
 	 *
 	 * @type  Boolen
@@ -12543,7 +12543,7 @@ elFinder.prototype.resources = {
 		placedir   : '<div class="elfinder-navbar-wrapper"><span id="{id}" class="ui-corner-all elfinder-navbar-dir {cssclass}"{title}><span class="elfinder-navbar-arrow"/><span class="elfinder-navbar-icon" {style}/>{symlink}{permissions}{name}</span><div class="elfinder-navbar-subtree" style="display:none"/></div>'
 		
 	},
-	// mimes.text will be overwritten with connector config if `textMimes` is included in initial response
+	// mimes.text will be overwritten with connection config if `textMimes` is included in initial response
 	// @see php/elFInder.class.php `public static $textMimes`
 	mimes : {
 		text : [
@@ -30813,7 +30813,7 @@ elFinder.prototype.commands.rename = function() {
 			}
 		}).length)) ? 0 : -1;
 		
-		// because alwaysEnabled = true, it need check disabled on connector 
+		// because alwaysEnabled = true, it need check disabled on connection
 		if (!isRoot && state === 0 && fm.option('disabledFlip', sel[0].hash)['rename']) {
 			state = -1;
 		}

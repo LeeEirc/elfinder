@@ -1,4 +1,4 @@
-package elfinder
+package log
 
 import (
 	"fmt"
@@ -44,7 +44,7 @@ type (
 	}
 )
 
-var globalLogger = DefaultLogger{
+var GlobalLogger = DefaultLogger{
 	prefix: "[Elfinder]",
 	writer: os.Stdout,
 	level:  0,

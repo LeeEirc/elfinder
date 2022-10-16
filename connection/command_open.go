@@ -1,8 +1,14 @@
-package elfinder
+package connection
 
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/LeeEirc/elfinder"
+	"github.com/LeeEirc/elfinder/codecs"
+	"github.com/LeeEirc/elfinder/errs"
+	"github.com/LeeEirc/elfinder/model"
+	"github.com/LeeEirc/elfinder/volumes"
 )
 
 type OpenRequest struct {
@@ -12,14 +18,14 @@ type OpenRequest struct {
 }
 
 type OpenResponse struct {
-	Api        float32      `json:"api,omitempty"`
-	Cwd        FileInfo     `json:"cwd"`
-	Files      []FileInfo   `json:"files,omitempty"`
-	NetDrivers []string     `json:"netDrivers,omitempty"`
-	UplMaxFile int          `json:"uplMaxFile"`
-	UplMaxSize string       `json:"uplMaxSize"`        //  "32M"
-	Options    Option       `json:"options,omitempty"` // Further information about the folder and its volume
-	Debug      *DebugOption `json:"debug,omitempty"`   // Debug information, if you specify the corresponding connector option.
+	Api        float32            `json:"api,omitempty"`
+	Cwd        model.FileInfo     `json:"cwd"`
+	Files      []model.FileInfo   `json:"files,omitempty"`
+	NetDrivers []string           `json:"netDrivers,omitempty"`
+	UplMaxFile int                `json:"uplMaxFile"`
+	UplMaxSize string             `json:"uplMaxSize"`        //  "32M"
+	Options    model.Option       `json:"options,omitempty"` // Further information about the folder and its volume
+	Debug      *model.DebugOption `json:"debug,omitempty"`   // Debug information, if you specify the corresponding connection option.
 }
 
 func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
@@ -28,7 +34,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		res   OpenResponse
 	)
 
-	if err := UnmarshalElfinderTag(&param, req.URL.Query()); err != nil {
+	if err := codecs.UnmarshalElfinderTag(&param, req.URL.Query()); err != nil {
 		connector.Logger.Error(err)
 		return
 	}
@@ -37,7 +43,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		id   string
 		path string
 		err  error
-		vol  FsVolume
+		vol  volumes.FsVolume
 	)
 	vol = connector.DefaultVol
 	id = connector.GetVolId(connector.DefaultVol)
@@ -45,9 +51,9 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	if param.Target != "" {
 		id, path, err = connector.ParseTarget(param.Target)
 		if err != nil {
-			connector.Logger.Errorf("parse target %s err: %s", param.Target, err)
-			if jsonErr := SendJson(rw, NewErr(ERROpen, err)); jsonErr != nil {
-				connector.Logger.Errorf("send response json err: %s", err)
+			connector.Logger.Errorf("parse target %s errs: %s", param.Target, err)
+			if jsonErr := SendJson(rw, NewErr(errs.ERROpen, err)); jsonErr != nil {
+				connector.Logger.Errorf("send response json errs: %s", err)
 			}
 			return
 		}
@@ -55,15 +61,15 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	}
 	if vol == nil {
 		connector.Logger.Errorf("not found vol by id: %s", id)
-		if err = SendJson(rw, NewErr(ERROpen, ErrNoFoundVol)); err != nil {
-			connector.Logger.Errorf("send response json err: %s", err)
+		if err = SendJson(rw, NewErr(errs.ERROpen, ErrNoFoundVol)); err != nil {
+			connector.Logger.Errorf("send response json errs: %s", err)
 		}
 		return
 	}
 
 	cwd, err2 := StatFsVolFileByPath(id, vol, path)
 	if err2 != nil {
-		if jsonErr := SendJson(rw, NewErr(ERROpen, err2)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(errs.ERROpen, err2)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -71,7 +77,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 	res.Cwd = cwd
 	resFiles, err := ReadFsVolDir(id, vol, path)
 	if err != nil {
-		if jsonErr := SendJson(rw, NewErr(ERROpen, err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(errs.ERROpen, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -85,7 +91,7 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 				vItem, err3 := StatFsVolFileByPath(vid, connector.Vols[vid], fmt.Sprintf("/%s", vol.Name()))
 				if err3 != nil {
 					connector.Logger.Error(err3)
-					if jsonErr := SendJson(rw, NewErr(ERROpen, err3)); jsonErr != nil {
+					if jsonErr := SendJson(rw, NewErr(errs.ERROpen, err3)); jsonErr != nil {
 						connector.Logger.Error(jsonErr)
 					}
 					return
@@ -96,8 +102,8 @@ func OpenCommand(connector *Connector, req *http.Request, rw http.ResponseWriter
 		}
 	}
 	if param.Init {
-		res.Api = APIVERSION
-		opt := NewDefaultOption()
+		res.Api = elfinder.APIVERSION
+		opt := model.NewDefaultOption()
 		opt.Path = res.Cwd.Name
 		res.Options = opt
 		res.Cwd.Options = &opt

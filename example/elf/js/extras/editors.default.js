@@ -2299,7 +2299,7 @@
 								}
 								fm.bind('dialogopened', err).exec('upload', Object.assign({
 									files: [file],
-									clipdata: clipdata // to get unique name on connector
+									clipdata: clipdata // to get unique name on connection
 								}, self.confObj.uploadOpts), void(0), fm.cwd().hash).done(function(data) {
 									if (data.added && data.added.length) {
 										fm.url(data.added[0].hash, { async: true }).done(function(url) {

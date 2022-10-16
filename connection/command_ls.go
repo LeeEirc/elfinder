@@ -1,10 +1,11 @@
-package command
+package connection
 
 import (
 	"fmt"
+	"github.com/LeeEirc/elfinder/codecs"
+	"github.com/LeeEirc/elfinder/errs"
+	"github.com/LeeEirc/elfinder/volumes"
 	"net/http"
-
-	"github.com/LeeEirc/elfinder"
 )
 
 type LsRequest struct {
@@ -16,13 +17,13 @@ type LsResponse struct {
 	List map[string]string `json:"list"`
 }
 
-func LsCommand(connector *elfinder.Connector, req *http.Request, rw http.ResponseWriter) {
+func LsCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
 	var (
 		lsReq LsRequest
 		res   LsResponse
 	)
 
-	if err := elfinder.UnmarshalElfinderTag(&lsReq, req.URL.Query()); err != nil {
+	if err := codecs.UnmarshalElfinderTag(&lsReq, req.URL.Query()); err != nil {
 		connector.Logger.Error(err)
 		return
 	}
@@ -30,7 +31,7 @@ func LsCommand(connector *elfinder.Connector, req *http.Request, rw http.Respons
 		id   string
 		path string
 		err  error
-		vol  elfinder.FsVolume
+		vol  volumes.FsVolume
 	)
 	vol = connector.DefaultVol
 	id = connector.GetVolId(connector.DefaultVol)
@@ -39,9 +40,9 @@ func LsCommand(connector *elfinder.Connector, req *http.Request, rw http.Respons
 	if lsReq.Target != "" {
 		id, path, err = connector.ParseTarget(lsReq.Target)
 		if err != nil {
-			connector.Logger.Errorf("parse target %s err: %s", lsReq.Target, err)
-			if jsonErr := elfinder.SendJson(rw, elfinder.NewErr(elfinder.ERRCmdParams, err)); jsonErr != nil {
-				connector.Logger.Errorf("send response json err: %s", err)
+			connector.Logger.Errorf("parse target %s errs: %s", lsReq.Target, err)
+			if jsonErr := SendJson(rw, NewErr(errs.ERRCmdParams, err)); jsonErr != nil {
+				connector.Logger.Errorf("send response json errs: %s", err)
 			}
 			return
 		}
@@ -49,15 +50,15 @@ func LsCommand(connector *elfinder.Connector, req *http.Request, rw http.Respons
 	}
 	if vol == nil {
 		connector.Logger.Errorf("not found vol by id: %s", id)
-		if jsonErr := elfinder.SendJson(rw, elfinder.NewErr(elfinder.ERRCmdParams, elfinder.ErrNoFoundVol)); jsonErr != nil {
-			connector.Logger.Errorf("send response json err: %s", err)
+		if jsonErr := SendJson(rw, NewErr(errs.ERRCmdParams, ErrNoFoundVol)); jsonErr != nil {
+			connector.Logger.Errorf("send response json errs: %s", err)
 		}
 		return
 	}
 
-	resFiles, err := elfinder.ReadFsVolDir(id, vol, path)
+	resFiles, err := ReadFsVolDir(id, vol, path)
 	if err != nil {
-		if jsonErr := elfinder.SendJson(rw, elfinder.NewErr(elfinder.ERROpen, err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(errs.ERROpen, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -76,7 +77,7 @@ func LsCommand(connector *elfinder.Connector, req *http.Request, rw http.Respons
 		}
 	}
 
-	if err = elfinder.SendJson(rw, res); err != nil {
-		connector.Logger.Errorf("send response json err: %s", err)
+	if err = SendJson(rw, res); err != nil {
+		connector.Logger.Errorf("send response json errs: %s", err)
 	}
 }

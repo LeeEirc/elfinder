@@ -1,9 +1,12 @@
-package elfinder
+package connection
 
 import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/LeeEirc/elfinder/codecs"
+	"github.com/LeeEirc/elfinder/errs"
 )
 
 type TreeRequest struct {
@@ -14,14 +17,14 @@ type TreeRequest struct {
 func TreeCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) {
 	var param TreeRequest
 
-	if err := UnmarshalElfinderTag(&param, req.URL.Query()); err != nil {
+	if err := codecs.UnmarshalElfinderTag(&param, req.URL.Query()); err != nil {
 		log.Print(err)
 		return
 	}
 	id, path, err := connector.ParseTarget(param.Target)
 	if err != nil {
 		log.Print(err)
-		if jsonErr := SendJson(rw, NewErr(ERRCmdParams, err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(errs.ERRCmdParams, err)); jsonErr != nil {
 			log.Print(jsonErr)
 		}
 		return

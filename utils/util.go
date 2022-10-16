@@ -1,4 +1,4 @@
-package elfinder
+package utils
 
 import (
 	"crypto/md5"

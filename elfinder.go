@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/go-playground/form"
+
+	"github.com/LeeEirc/elfinder/utils"
 )
 
 const (
@@ -279,12 +281,12 @@ func (elf *ElFinderConnector) paste() {
 		srcVol := elf.getVolume(srcIDAndTarget[0])
 		srcPath, err := elf.parseTarget(strings.Join(srcIDAndTarget[1:], "_"))
 		if err != nil {
-			log.Println("parse path err: ", err)
+			log.Println("parse path errs: ", err)
 			continue
 		}
 		srcFileDir, err := srcVol.Info(srcPath)
 		if err != nil {
-			log.Println("Get File err: ", err)
+			log.Println("Get File errs: ", err)
 			continue
 		}
 		if srcFileDir.Dirs == 1 {
@@ -297,7 +299,7 @@ func (elf *ElFinderConnector) paste() {
 			}
 			newDstDirFile, err := dstVol.MakeDir(dstPath, newDirName)
 			if err != nil {
-				log.Printf("Make Dir err: %s", err.Error())
+				log.Printf("Make Dir errs: %s", err.Error())
 				elf.res.Error = []string{errMsg, err.Error()}
 				break
 			}
@@ -307,13 +309,13 @@ func (elf *ElFinderConnector) paste() {
 		} else {
 			srcFd, err := srcVol.GetFile(srcPath)
 			if err != nil {
-				log.Println("Get File err: ", err.Error())
+				log.Println("Get File errs: ", err.Error())
 				elf.res.Error = []string{errMsg, err.Error()}
 				break
 			}
 			newFileDir, err := dstVol.Paste(dstPath, srcFileDir.Name, elf.req.Suffix, srcFd)
 			if err != nil {
-				log.Println("parse path err: ", err)
+				log.Println("parse path errs: ", err)
 				elf.res.Error = []string{errMsg, err.Error()}
 				break
 			}
@@ -341,7 +343,7 @@ func (elf *ElFinderConnector) copyFolder(dstPath, srcDir string, dstVol, srcVol 
 		if srcFiles[i].Dirs == 1 {
 			subDirFile, err := dstVol.MakeDir(dstPath, srcFiles[i].Name)
 			if err != nil {
-				log.Printf("Make dir err: %s", err.Error())
+				log.Printf("Make dir errs: %s", err.Error())
 				break
 			}
 			added = append(added, subDirFile)
@@ -351,12 +353,12 @@ func (elf *ElFinderConnector) copyFolder(dstPath, srcDir string, dstVol, srcVol 
 		} else {
 			srcFd, err := srcVol.GetFile(srcPath)
 			if err != nil {
-				log.Println("Get File err: ", err)
+				log.Println("Get File errs: ", err)
 				continue
 			}
 			newFileDir, err := dstVol.Paste(dstPath, srcFiles[i].Name, elf.req.Suffix, srcFd)
 			if err != nil {
-				log.Println("parse path err: ", err)
+				log.Println("parse path errs: ", err)
 				continue
 			}
 			added = append(added, newFileDir)
@@ -438,12 +440,12 @@ func (elf *ElFinderConnector) duplicate() {
 		srcVol := elf.getVolume(srcIDAndTarget[0])
 		srcPath, err := elf.parseTarget(strings.Join(srcIDAndTarget[1:], "_"))
 		if err != nil {
-			log.Println("parse path err: ", err)
+			log.Println("parse path errs: ", err)
 			continue
 		}
 		srcFileDir, err := srcVol.Info(srcPath)
 		if err != nil {
-			log.Println("Get File err: ", err)
+			log.Println("Get File errs: ", err)
 			continue
 		}
 		dstPath := filepath.Dir(srcPath)
@@ -451,7 +453,7 @@ func (elf *ElFinderConnector) duplicate() {
 		if srcFileDir.Dirs == 1 {
 			newDstDirFile, err := srcVol.MakeDir(dstPath, newName)
 			if err != nil {
-				log.Printf("Make Dir err: %s", err.Error())
+				log.Printf("Make Dir errs: %s", err.Error())
 				elf.res.Error = []string{errMsg, err.Error()}
 				break
 			}
@@ -461,13 +463,13 @@ func (elf *ElFinderConnector) duplicate() {
 		} else {
 			srcFd, err := srcVol.GetFile(srcPath)
 			if err != nil {
-				log.Println("Get File err: ", err.Error())
+				log.Println("Get File errs: ", err.Error())
 				elf.res.Error = []string{errMsg, err.Error()}
 				break
 			}
 			dstFdInfo, err := srcVol.Paste(dstPath, newName, "_duplicate_", srcFd)
 			if err != nil {
-				log.Println("Duplicate path err: ", err)
+				log.Println("Duplicate path errs: ", err)
 				elf.res.Error = []string{errMsg, err.Error()}
 				break
 			}
@@ -540,7 +542,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			http.SetCookie(rw, &http.Cookie{Path: req.Form.Get("cpath"), Name: "elfdl" + req.Form.Get("reqid"), Value: "1"})
 		}
 		if err != nil {
-			log.Printf("Download file err: %s", err)
+			log.Printf("Download file errs: %s", err)
 			elf.res.Error = err.Error()
 			rw.WriteHeader(403)
 			_, _ = rw.Write([]byte(err.Error()))
@@ -560,7 +562,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 				return
 			} else {
 				elf.res.Error = err.Error()
-				log.Printf("download file %s err: %s", filename, err.Error())
+				log.Printf("download file %s errs: %s", filename, err.Error())
 			}
 		}
 	case "ls":
@@ -622,7 +624,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 			}
 			rangeData := strings.Split(elf.req.Range, ",")
 			if len(rangeData) != 3 {
-				errs = append(errs, "err range data")
+				errs = append(errs, "errs range data")
 				break
 			}
 			offSet, err := strconv.Atoi(rangeData[0])
@@ -732,9 +734,9 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 					rw.Header().Del("Content-Disposition")
 					rw.Header().Del("Content-Type")
 					ret.Error = err
-					log.Println("zip download send err: ", err.Error())
+					log.Println("zip download send errs: ", err.Error())
 				}
-				log.Println("zip download err: ", err.Error())
+				log.Println("zip download errs: ", err.Error())
 				ret.Error = err
 			}
 			elf.res = &ret
@@ -754,11 +756,11 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 	rw.Header().Set("Content-Type", "application/json")
 	data, err := json.Marshal(elf.res)
 	if err != nil {
-		log.Println("elf Marshal err:", err.Error())
+		log.Println("elf Marshal errs:", err.Error())
 	}
 	_, err = rw.Write(data)
 	if err != nil {
-		log.Println("ResponseWriter Write err:", err.Error())
+		log.Println("ResponseWriter Write errs:", err.Error())
 	}
 }
 
@@ -778,7 +780,7 @@ func (elf *ElFinderConnector) parseTarget(target string) (path string, err error
 	if target == "" || target == "/" {
 		return "/", nil
 	}
-	path, err = Decode64(target)
+	path, err = utils.Decode64(target)
 	if err != nil {
 		return "", err
 	}
@@ -836,7 +838,7 @@ func (elf *ElFinderConnector) zipdl() {
 	zipTmpPath := filepath.Join(elf.zipTmpPath, filename)
 	dstFd, err := os.Create(zipTmpPath)
 	if err != nil {
-		log.Println("create tmp zip file err: ", err)
+		log.Println("create tmp zip file errs: ", err)
 		ret.Error = err.Error()
 		elf.res = &ret
 		return
@@ -860,26 +862,26 @@ func (elf *ElFinderConnector) zipdl() {
 			}
 			zipFile, err := zipWriter.CreateHeader(&fheader)
 			if err != nil {
-				log.Println("Create zip err: ", err.Error())
+				log.Println("Create zip errs: ", err.Error())
 				ret.Error = err.Error()
 				goto endErr
 			}
 			reader, err := v.GetFile(path)
 			if err != nil {
-				log.Println("Get file err:", err.Error())
+				log.Println("Get file errs:", err.Error())
 				ret.Error = err.Error()
 				goto endErr
 			}
 			_, err = io.Copy(zipFile, reader)
 			if err != nil {
-				log.Println("Get file err:", err.Error())
+				log.Println("Get file errs:", err.Error())
 				ret.Error = err.Error()
 				goto endErr
 			}
 			_ = reader.Close()
 		} else {
 			if err := zipFolder(v, filepath.Dir(path), path, zipWriter); err != nil {
-				log.Println("create tmp zip file err: ", err)
+				log.Println("create tmp zip file errs: ", err)
 				ret.Error = err.Error()
 				goto endErr
 			}
@@ -887,7 +889,7 @@ func (elf *ElFinderConnector) zipdl() {
 	}
 	err = zipWriter.Close()
 	if err != nil {
-		log.Println("Zip file finish err: ", err)
+		log.Println("Zip file finish errs: ", err)
 		ret.Error = err.Error()
 		goto endErr
 	}

@@ -4,14 +4,14 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"github.com/LeeEirc/elfinder/connection"
+	fs2 "github.com/LeeEirc/elfinder/volumes"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-
-	"github.com/LeeEirc/elfinder"
 )
 
 //go:embed elf
@@ -27,7 +27,7 @@ func init() {
 func main() {
 	mux := http.NewServeMux()
 	localFs := NewLocalV(dir)
-	connector := elfinder.NewConnector(elfinder.WithVolumes(localFs))
+	connector := connection.NewConnector(connection.WithVolumes(localFs))
 	fileSystem, err := fs.Sub(staticFs, "elf")
 	if err != nil {
 		log.Fatal(err)
@@ -40,10 +40,10 @@ func main() {
 }
 
 var (
-	_ elfinder.FsVolume = (*LocalV)(nil)
+	_ fs2.FsVolume = (*LocalV)(nil)
 )
 
-func NewLocalV(path string) elfinder.FsVolume {
+func NewLocalV(path string) fs2.FsVolume {
 	path = GetAbsPath(path)
 	info, err := os.Stat(path)
 	if err != nil {

@@ -1,7 +1,9 @@
-package elfinder
+package connection
 
 import (
 	"fmt"
+	"github.com/LeeEirc/elfinder/codecs"
+	"github.com/LeeEirc/elfinder/errs"
 	"net/http"
 	"strings"
 )
@@ -20,10 +22,10 @@ func RmCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 		cmdReq      RmRequest
 		cmdResponse RmResponse
 	)
-	err := UnmarshalElfinderTag(&cmdReq, req.URL.Query())
+	err := codecs.UnmarshalElfinderTag(&cmdReq, req.URL.Query())
 	if err != nil {
 		connector.Logger.Error(err)
-		if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(errs.ERRCmdReq, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -33,7 +35,7 @@ func RmCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 		id, path, err := connector.ParseTarget(target)
 		if err != nil {
 			connector.Logger.Error(err)
-			if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {
+			if jsonErr := SendJson(rw, NewErr(errs.ERRCmdReq, err)); jsonErr != nil {
 				connector.Logger.Error(jsonErr)
 			}
 			return
@@ -41,8 +43,8 @@ func RmCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 		vol, ok := connector.Vols[id]
 		if !ok {
 			connector.Logger.Errorf("not found vol by id: %s", id)
-			if err = SendJson(rw, NewErr(ERROpen, ErrNoFoundVol)); err != nil {
-				connector.Logger.Errorf("send response json err: %s", err)
+			if err = SendJson(rw, NewErr(errs.ERROpen, ErrNoFoundVol)); err != nil {
+				connector.Logger.Errorf("send response json errs: %s", err)
 			}
 			return
 		}
@@ -54,7 +56,7 @@ func RmCommand(connector *Connector, req *http.Request, rw http.ResponseWriter) 
 		relativePath := strings.TrimPrefix(path, fmt.Sprintf("/%s/", vol.Name()))
 		if err := vol.Remove(relativePath); err != nil {
 			connector.Logger.Error(err)
-			if jsonErr := SendJson(rw, NewErr(ERRRm, err)); jsonErr != nil {
+			if jsonErr := SendJson(rw, NewErr(errs.ERRRm, err)); jsonErr != nil {
 				connector.Logger.Error(jsonErr)
 			}
 			return

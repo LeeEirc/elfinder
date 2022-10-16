@@ -1,5 +1,4 @@
-package elfinder
-
+package model
 
 /*
  options : {
@@ -21,7 +20,7 @@ package elfinder
    "jpgQuality"      : 100,                                     // (Number) JPEG quality to image resize / crop / rotate (1-100)
    "syncChkAsTs"     : 1,                                       // (Number) Whether or not to current volume can detect update by the time stamp of the directory
    "syncMinMs"       : 30000,                                   // (Number) Minimum inteval Milliseconds for auto sync
-   "uiCmdMap"        : { "chmod" : "perm" },                    // (Object) Command conversion map for the current volume (e.g. chmod(ui) to perm(connector))
+   "uiCmdMap"        : { "chmod" : "perm" },                    // (Object) Command conversion map for the current volume (e.g. chmod(ui) to perm(connection))
    "i18nFolderName"  : 1,                                       // (Number) Is enabled i18n folder name that convert name to elFinderInstance.messages['folder_'+name]
    "archivers"       : {                                        // (Object) Archive settings
      "create"  : [
@@ -108,8 +107,6 @@ func NewDefaultOption() Option {
 }
 
 const Separator = "/"
-
-
 
 type DebugOption struct {
 	Connector string        `json:"connector"`

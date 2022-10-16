@@ -1,4 +1,4 @@
-package elfinder
+package errs
 
 type ErrType string
 

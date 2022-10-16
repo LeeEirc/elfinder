@@ -1,26 +1,31 @@
-package elfinder
+package connection
 
 import (
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/LeeEirc/elfinder/errs"
+	"github.com/LeeEirc/elfinder/log"
+	"github.com/LeeEirc/elfinder/utils"
+	"github.com/LeeEirc/elfinder/volumes"
 )
 
 func NewConnector(opts ...Options) *Connector {
 	opt := option{
-		Logger: &globalLogger,
+		Logger: &log.GlobalLogger,
 	}
 	for _, setter := range opts {
 		setter(&opt)
 	}
 
-	volsMap := make(map[string]FsVolume, len(opt.Vols))
+	volsMap := make(map[string]volumes.FsVolume, len(opt.Vols))
 	for i := range opt.Vols {
-		vid := MD5ID(opt.Vols[i].Name())
+		vid := utils.MD5ID(opt.Vols[i].Name())
 		volsMap[vid] = opt.Vols[i]
 	}
-	var defaultVol FsVolume
+	var defaultVol volumes.FsVolume
 	if len(opt.Vols) > 0 {
 		defaultVol = opt.Vols[0]
 	}
@@ -33,14 +38,14 @@ func NewConnector(opts ...Options) *Connector {
 }
 
 type Connector struct {
-	DefaultVol FsVolume
-	Vols       map[string]FsVolume
+	DefaultVol volumes.FsVolume
+	Vols       map[string]volumes.FsVolume
 	Created    time.Time
-	Logger     Logger
+	Logger     log.Logger
 	mux        sync.Mutex
 }
 
-func (c *Connector) GetVolId(v FsVolume) string {
+func (c *Connector) GetVolId(v volumes.FsVolume) string {
 	for id, vol := range c.Vols {
 		if vol.Name() == v.Name() {
 			return id
@@ -48,7 +53,7 @@ func (c *Connector) GetVolId(v FsVolume) string {
 	}
 	return ""
 }
-func (c *Connector) GetFsById(id string) FsVolume {
+func (c *Connector) GetFsById(id string) volumes.FsVolume {
 	return c.Vols[id]
 }
 
@@ -56,22 +61,22 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	formParseFunc, ok := supportedMethods[r.Method]
 	if !ok {
 		c.Logger.Errorf("not support http method %s", r.Method)
-		if err := SendJson(w, NewErr(ERRCmdParams, fmt.Errorf("method: %s", r.Method))); err != nil {
+		if err := SendJson(w, NewErr(errs.ERRCmdParams, fmt.Errorf("method: %s", r.Method))); err != nil {
 			c.Logger.Error(err)
 		}
 		return
 	}
 	if err := formParseFunc(r); err != nil {
-		c.Logger.Errorf("HTTP form parse err: %s", err)
-		if err := SendJson(w, NewErr(ERRCmdParams, err)); err != nil {
+		c.Logger.Errorf("HTTP form parse errs: %s", err)
+		if err := SendJson(w, NewErr(errs.ERRCmdParams, err)); err != nil {
 			c.Logger.Error(err)
 		}
 		return
 	}
 	cmd, err := parseCommand(r)
 	if err != nil {
-		c.Logger.Errorf("Parse command err: %s %+v", err, r.URL.Query())
-		if err := SendJson(w, NewErr(ERRCmdParams, err)); err != nil {
+		c.Logger.Errorf("Parse command errs: %s %+v", err, r.URL.Query())
+		if err := SendJson(w, NewErr(errs.ERRCmdParams, err)); err != nil {
 			c.Logger.Error(err)
 		}
 		return
@@ -80,7 +85,7 @@ func (c *Connector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		c.Logger.Errorf("Command `%s` not supported", cmd)
 		err = fmt.Errorf("command `%s` not supported", cmd)
-		if err := SendJson(w, NewErr(ERRUsupportType, err)); err != nil {
+		if err := SendJson(w, NewErr(errs.ERRUsupportType, err)); err != nil {
 			c.Logger.Error(err)
 		}
 		return
@@ -95,17 +100,17 @@ func (c *Connector) ParseTarget(target string) (vid, vPath string, err error) {
 type Options func(*option)
 
 type option struct {
-	Vols   []FsVolume
-	Logger Logger
+	Vols   []volumes.FsVolume
+	Logger log.Logger
 }
 
-func WithVolumes(vols ...FsVolume) Options {
+func WithVolumes(vols ...volumes.FsVolume) Options {
 	return func(o *option) {
 		o.Vols = vols
 	}
 }
 
-func WithLogger(logger Logger) Options {
+func WithLogger(logger log.Logger) Options {
 	return func(o *option) {
 		o.Logger = logger
 	}

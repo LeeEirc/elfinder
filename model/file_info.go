@@ -1,4 +1,4 @@
-package elfinder
+package model
 
 type FileInfo struct {
 	Name       string  `json:"name"`

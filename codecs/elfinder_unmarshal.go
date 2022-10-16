@@ -1,4 +1,4 @@
-package elfinder
+package codecs
 
 import (
 	"encoding"

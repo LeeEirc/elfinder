@@ -1,12 +1,15 @@
-package elfinder
+package connection
 
 import (
+	"github.com/LeeEirc/elfinder/codecs"
+	"github.com/LeeEirc/elfinder/errs"
+	"github.com/LeeEirc/elfinder/model"
 	"net/http"
 	"path/filepath"
 )
 
 type ParentsResponse struct {
-	Tree []FileInfo `json:"tree"`
+	Tree []model.FileInfo `json:"tree"`
 }
 
 type ParentsRequest struct {
@@ -19,10 +22,10 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 		res   ParentsResponse
 	)
 
-	err := UnmarshalElfinderTag(&param, req.URL.Query())
+	err := codecs.UnmarshalElfinderTag(&param, req.URL.Query())
 	if err != nil {
 		connector.Logger.Error(err)
-		if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(errs.ERRCmdReq, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
@@ -31,7 +34,7 @@ func ParentsCommand(connector *Connector, req *http.Request, rw http.ResponseWri
 	id, path, err := connector.ParseTarget(target)
 	if err != nil {
 		connector.Logger.Error(err)
-		if jsonErr := SendJson(rw, NewErr(ERRCmdReq, err)); jsonErr != nil {
+		if jsonErr := SendJson(rw, NewErr(errs.ERRCmdReq, err)); jsonErr != nil {
 			connector.Logger.Error(jsonErr)
 		}
 		return
