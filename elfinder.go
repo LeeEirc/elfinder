@@ -92,12 +92,21 @@ func (elf *ElFinderConnector) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 		}
 
 	case "POST":
-		err = req.ParseMultipartForm(32 << 20) // ToDo check 8Mb
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
+		ct := req.Header.Get("Content-Type")
+		ct, _, _ = mime.ParseMediaType(ct)
+		switch ct {
+		case "multipart/form-data":
+			err = req.ParseMultipartForm(32 << 20) // ToDo check 8Mb
+			if err != nil {
+				http.Error(rw, err.Error(), http.StatusBadRequest)
+				return
+			}
+		default:
+			if err := req.ParseForm(); err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
-
 	default:
 		http.Error(rw, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
