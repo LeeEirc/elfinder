@@ -176,8 +176,8 @@ func (elf *ElFinderConnector) file() (read io.ReadCloser, filename string, err e
 		return
 	}
 	filename = filepath.Base(path)
-	reader, err := v.GetFile(path)
-	return reader, filename, err
+	fileData, err := v.GetFile(path)
+	return fileData.Reader, filename, err
 }
 
 func (elf *ElFinderConnector) ls() {
@@ -873,19 +873,19 @@ func (elf *ElFinderConnector) zipdl() {
 				ret.Error = err.Error()
 				goto endErr
 			}
-			reader, err := v.GetFile(path)
+			fileData, err := v.GetFile(path)
 			if err != nil {
 				log.Println("Get file err:", err.Error())
 				ret.Error = err.Error()
 				goto endErr
 			}
-			_, err = io.Copy(zipFile, reader)
+			_, err = io.Copy(zipFile, fileData.Reader)
 			if err != nil {
 				log.Println("Get file err:", err.Error())
 				ret.Error = err.Error()
 				goto endErr
 			}
-			_ = reader.Close()
+			_ = fileData.Reader.Close()
 		} else {
 			if err := zipFolder(v, filepath.Dir(path), path, zipWriter); err != nil {
 				log.Println("create tmp zip file err: ", err)
@@ -944,15 +944,15 @@ func zipFolder(v Volume, baseFolder, folderPath string, zipW *zip.Writer) error 
 		if err != nil {
 			return err
 		}
-		reader, err := v.GetFile(currentPath)
+		fileData, err := v.GetFile(currentPath)
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(zipFile, reader)
+		_, err = io.Copy(zipFile, fileData.Reader)
 		if err != nil {
 			return err
 		}
-		_ = reader.Close()
+		_ = fileData.Reader.Close()
 	}
 	return nil
 }

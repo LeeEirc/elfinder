@@ -1,5 +1,7 @@
 package elfinder
 
+import "io"
+
 // source code from https://github.com/Supme/goElFinder/blob/master/types.go
 
 var defaultOptions = options{
@@ -8,7 +10,7 @@ var defaultOptions = options{
 	CopyOverwrite: 1}
 
 type ElfResponse struct {
-	Api        float64    `json:"api,omitempty"`        // The version number of the protocol, must be >= 2.1, ATTENTION - return api ONLY for init request!
+	Api        float64   `json:"api,omitempty"`        // The version number of the protocol, must be >= 2.1, ATTENTION - return api ONLY for init request!
 	Cwd        FileDir   `json:"cwd,omitempty"`        // Current Working Directory - information about the current directory. Information about File/Directory
 	Files      []FileDir `json:"files"`                // array of objects - files and directories in current directory. If parameter tree == true, then added to the folder of the directory tree to a given depth. The order of files is not important. Note you must include the top-level volume objects here as well (i.e. cwd is repeated here, in addition to other volumes)
 	NetDrivers []string  `json:"netDrivers,omitempty"` // Network protocols list which can be mounted on the fly (using netmount command). Now only ftp supported.
@@ -81,4 +83,9 @@ type FileDir struct {
 	Netkey   string                 `json:"netkey,omitempty"`   // Netmount volume unique key, Required for netmount volume. It can include to options.
 	Options  options                `json:"options,omitempty"`  // For volume root only. This value is same to cwd.options.
 	Debug    map[string]interface{} `json:"debug,omitempty"`    // For volume root only. This value is same to cwd.options.
+}
+
+type FileData struct {
+	Reader io.ReadCloser
+	Size   int64
 }

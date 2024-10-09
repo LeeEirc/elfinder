@@ -17,7 +17,7 @@ type Volume interface {
 	Info(path string) (FileDir, error)
 	List(path string) []FileDir
 	Parents(path string, dep int) []FileDir
-	GetFile(path string) (reader io.ReadCloser, err error)
+	GetFile(path string) (fileData FileData, err error)
 	UploadFile(dir, uploadPath, filename string, reader io.Reader, totalSize int64) (FileDir, error)
 	UploadChunk(cid int, dirPath, uploadPath, filename string, rangeData ChunkRange, reader io.Reader) error
 	MergeChunk(cid, total int, dirPath, uploadPath, filename string) (FileDir, error)
@@ -25,7 +25,7 @@ type Volume interface {
 	MakeFile(dir, newFilename string) (FileDir, error)
 	Rename(oldNamePath, newname string) (FileDir, error)
 	Remove(path string) error
-	Paste(dir, filename, suffix string, reader io.ReadCloser) (FileDir, error)
+	Paste(dir, filename, suffix string, fileData FileData) (FileDir, error)
 	RootFileDir() FileDir
 	Search(path, key string, mimes ...string) ([]FileDir, error)
 }
@@ -119,12 +119,15 @@ func (f *LocalFileVolume) Parents(path string, dep int) []FileDir {
 	return dirs
 }
 
-func (f *LocalFileVolume) GetFile(path string) (reader io.ReadCloser, err error) {
+func (f *LocalFileVolume) GetFile(path string) (reader FileData, err error) {
 	freader, err := os.Open(path)
-	return freader, err
+	info, err := freader.Stat()
+	if err != nil {
+		return FileData{}, err
+	}
+	return FileData{freader, info.Size()}, err
 }
 
-// TODO...
 func (f *LocalFileVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader, totalSize int64) (FileDir, error) {
 	var realPath string
 	switch {
