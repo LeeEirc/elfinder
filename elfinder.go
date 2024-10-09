@@ -703,7 +703,7 @@ func (elf *ElFinderConnector) dispatch(rw http.ResponseWriter, req *http.Request
 				if len(elf.req.UploadPath) == len(files) && elf.req.UploadPath[i] != elf.req.Target {
 					uploadPath = elf.req.UploadPath[i]
 				}
-				result, err := v.UploadFile(dirpath, uploadPath, uploadFile.Filename, f)
+				result, err := v.UploadFile(dirpath, uploadPath, uploadFile.Filename, f, uploadFile.Size)
 				if err != nil {
 					errs = append(errs, err.Error())
 					continue
